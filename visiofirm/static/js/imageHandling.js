@@ -231,15 +231,24 @@ export function resizeCanvas() {
         console.error('Container element not found');
         return;
     }
-    const availableWidth = container.clientWidth;
+    // Compute the actual inner width/height available for the canvas (exclude container padding)
+    const style = getComputedStyle(container);
+    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const padRight = parseFloat(style.paddingRight) || 0;
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padBottom = parseFloat(style.paddingBottom) || 0;
+    const availableWidth = Math.max(0, container.clientWidth - padLeft - padRight);
     const infoHeight = imageInfo ? imageInfo.offsetHeight : 0;
-    const availableHeight = Math.max(0, container.clientHeight - infoHeight);
+    const availableHeight = Math.max(0, container.clientHeight - padTop - padBottom - infoHeight);
     const widthScale = availableWidth / currentImage.width;
     const heightScale = availableHeight / currentImage.height;
     const fitZoom = Math.min(widthScale, heightScale) * 0.9;
 
-    canvas.width = availableWidth;
-    canvas.height = availableHeight;
+    // Ensure canvas CSS size matches computed available size, then set backing size
+    canvas.style.width = `${availableWidth}px`;
+    canvas.style.height = `${availableHeight}px`;
+    canvas.width = Math.max(1, Math.floor(availableWidth));
+    canvas.height = Math.max(1, Math.floor(availableHeight));
     viewport.fitZoom = fitZoom;
     viewport.minZoom = fitZoom * 0.5;
     viewport.zoom = Math.max(viewport.minZoom, viewport.zoom);
