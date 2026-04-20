@@ -167,6 +167,8 @@
     position: relative;
     box-sizing: border-box;
     padding-top: 32px;
+    /* Reserve space on the right so controls sit beside the canvas instead of overlapping */
+    padding-right: 72px;
 }
 
 .image-info {
@@ -205,10 +207,12 @@
     flex-direction: column;
     gap: 8px;
     background: rgba(255, 255, 255, 0.9);
-    padding: 8px; 
+    padding: 8px;
     border-radius: 8px; 
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 10;
+    width: 56px; /* fixed width to match reserved padding */
+    align-items: center;
 }
 
 .control-btn {
@@ -508,7 +512,9 @@
 }
 
 .approve-btn {
-    padding: 8px 16px;
+    padding: 8px 12px;
+    height: 36px;
+    min-height: 36px;
     background: var(--success-color);
     color: white;
     border: none;
@@ -516,9 +522,11 @@
     cursor: pointer;
     transition: var(--transition);
     font-weight: 500;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    align-self: center; /* ensure vertical alignment within .control-panel */
+    font-size: 0.95rem;
 }
   
 .approve-btn:hover {
@@ -971,7 +979,6 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 250px;
     height: 100%;
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);

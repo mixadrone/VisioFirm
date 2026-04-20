@@ -199,58 +199,63 @@
 .class-selector {
     width: 85%; /* 90% of control-panel width */
     max-height: 30vh; /* Constrain height to fit viewport; adjust as needed */
-    overflow-y: auto; /* Enable vertical scrolling for tags */
-    overflow-x: hidden; /* Prevent horizontal overflow */
+    overflow-y: hidden; /* Prevent vertical scrolling */
+    overflow-x: auto; /* Allow horizontal scrolling if many tags */
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* keep tags in a single row */
+    align-items: center;
 }
 
 #class-tags-container {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* force single row */
     gap: 10px;
-    height: calc(3 * 2em); /* ~2 rows tall */
-    overflow-y: auto;
+    align-items: center;
+    height: auto;
+    overflow-x: auto;
 }
 
 .classes-left {
     width: 70%;
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap; 
-    gap: 5px;
+    flex-wrap: nowrap; 
+    gap: 8px;
     max-height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    align-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: center;
 }
 
 .classes-right {
     width: 20%;
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 5px;
+    flex-wrap: nowrap;
+    gap: 6px;
     max-height: 100%;
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: center;
     background-color: #ddd;
 }
 
     .class-tag {
         position: relative;
-        padding: 0px 5px 2px 2px;
-        margin: 4px 0;
-        border-radius: 4px;
-    color: black;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: default;
-    transition: opacity 0.2s ease;
-    min-width: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-        max-height: 30px;
+        padding: 4px 8px;
+        margin: 0 4px; /* horizontal spacing, keep single line */
+        border-radius: 6px;
+        color: black;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: default;
+        transition: opacity 0.2s ease;
+        min-width: auto;
+        display: inline-flex; /* keep tags inline */
+        justify-content: center;
+        align-items: center;
+        height: 30px;
+        line-height: 1;
     }
 
     .class-tag-label {
@@ -302,24 +307,7 @@
     border: 2px solid black;
 }
 
-.approve-btn {
-    width: 80px; 
-    align-self: flex-start;
-    padding: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 4px;
-    background-color: #4cc9f0;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    text-align: center;
-}
 
-.approve-btn:hover {
-    background-color: #3aa8d0; /* Darker shade on hover */
-}
 
     .class-tag:hover {
         opacity: 0.9; /* Subtle hover effect */
@@ -379,6 +367,20 @@
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Reduce size of shortcuts toggle button */
+    .shortcuts-sidebar .shortcuts-toggle {
+        font-size: 0.85rem; /* slightly smaller text */
+        padding: 6px 8px; /* smaller padding */
+        height: 30px;
+        line-height: 1; /* tighten vertical spacing */
+        border-radius: 0px;
+    }
+
+    .shortcuts-sidebar .shortcuts-toggle i {
+        margin-right: 6px; /* keep small gap between icon and text */
+        font-size: 0.9em; /* scale down the icon a bit */
     }
 
     #ai-preannotator-modal h2 {
@@ -867,6 +869,7 @@
                         <button class="control-btn" id="save-btn" title="Save Annotations"><img src="/static/img/logos/save-btn.svg" alt="Save Annotations"></button>
                         <button class="control-btn" id="prev-image-btn" title="Previous Image"><img src="/static/img/logos/prev-image-btn.svg" alt="Previous Image"></button>
                         <button class="control-btn" id="next-image-btn" title="Next Image"><img src="/static/img/logos/next-image-btn.svg" alt="Next Image"></button>
+                        <button class="control-btn" id="delete-image-btn" title="Delete Current Image"><img src="/static/img/logos/delete-btn.svg" alt="Delete Image"></button>
                     </div>
                 </div>
                 {% if setup_type != 'Classification' %}
@@ -967,6 +970,24 @@
             <div class="modal-footer">
                 <button class="cancel-btn" id="cancel-delete-images-footer">Cancel</button>
                 <button class="delete-btn" id="confirm-delete-images">Delete</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="delete-single-confirm-modal">
+        <div class="modal-content danger-modal">
+            <div class="modal-header danger-header">
+                <div class="header-content">
+                    <i class="fas fa-exclamation-triangle danger-icon"></i>
+                    <h2>Confirm Image Deletion</h2>
+                </div>
+                <button class="close-btn" id="cancel-delete-single" title="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-single-message">Are you sure you want to delete this image? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn" id="cancel-delete-single-footer">Cancel</button>
+                <button class="delete-btn" id="confirm-delete-single">Delete</button>
             </div>
         </div>
     </div>

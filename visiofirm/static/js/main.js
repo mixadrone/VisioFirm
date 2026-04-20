@@ -88,7 +88,7 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
     const thumbnailRow = document.querySelector(`.thumbnail-row[data-id="${filename}"]`);
     if (thumbnailRow) {
         thumbnailRow.dataset.annotated = isAnnotated;
-        thumbnailRow.dataset.preannotated = isPreannotated ? 'true' : 'false'; 
+        thumbnailRow.dataset.preannotated = isPreannotated ? 'true' : 'false';
     }
 }
 
@@ -221,16 +221,16 @@ function hslToHex(h, s, l) {
         const hue2rgb = (p, q, t) => {
             if (t < 0) t += 1;
             if (t > 1) t -= 1;
-            if (t < 1/6) return p + (q - p) * 6 * t;
-            if (t < 1/2) return q;
-            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
             return p;
         };
         const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
         const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
+        r = hue2rgb(p, q, h + 1 / 3);
         g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
+        b = hue2rgb(p, q, h - 1 / 3);
     }
     const toHex = x => {
         const hex = Math.round(x * 255).toString(16);
@@ -252,10 +252,10 @@ function showSuccessModal(message) {
     }, 3000);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initGlobals();
     const config = JSON.parse(document.getElementById('app-config').textContent);
-    const projectName = config.projectName; 
+    const projectName = config.projectName;
     const setupType = config.setupType;
     const classes = config.classes;
     generateClassColors(classes);
@@ -263,6 +263,37 @@ document.addEventListener('DOMContentLoaded', function() {
     generateClassTags();
     initializeGridView();
     hideLoadingAnimation();
+
+    // If a `focus` query param is present, open that image in annotation view
+    (function handleFocusParam() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const focus = params.get('focus');
+            if (!focus) return;
+            const decoded = decodeURIComponent(focus);
+
+            // Try to find the image in grid, list or annotation thumbnails
+            let img = document.querySelector(`#grid-thumbnails .grid-card[data-id="${decoded}"] img`)
+                || document.querySelector(`#list-table tbody tr[data-id="${decoded}"] img`)
+                || document.querySelector(`#annotation-view .thumbnail-row[data-id="${decoded}"] img`);
+
+            if (img) {
+                switchToAnnotationView(img);
+                // remove focus param from URL
+                params.delete('focus');
+                const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+                window.history.replaceState({}, '', newUrl);
+            } else {
+                // Thumbnails might be lazy-loaded; try again shortly
+                setTimeout(() => {
+                    const img2 = document.querySelector(`#annotation-view .thumbnail-row[data-id="${decoded}"] img`);
+                    if (img2) switchToAnnotationView(img2);
+                }, 200);
+            }
+        } catch (e) {
+            console.warn('Error handling focus param', e);
+        }
+    })();
 
     function handleCheckboxChange(e) {
         const checkbox = e.target;
@@ -513,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    enableSplitting.addEventListener('change', function() {
+    enableSplitting.addEventListener('change', function () {
         const isEnabled = this.checked;
         document.querySelectorAll('.split-choice input:not(#train-split)').forEach(checkbox => {
             checkbox.disabled = !isEnabled;
@@ -522,14 +553,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     splitCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
+        checkbox.addEventListener('change', function () {
             updateRatioControls();
             adjustRatios();
         });
     });
 
     document.querySelectorAll('input[type="range"], input[type="number"]').forEach(input => {
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             const split = this.closest('.ratio-control').dataset.split;
             const value = parseInt(this.value);
 

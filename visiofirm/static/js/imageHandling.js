@@ -1,6 +1,7 @@
 import {
     currentImageKey,
     currentImage,
+    currentImageIndex,
     annotations,
     annotationCache,
     undoStack,
@@ -117,7 +118,7 @@ export async function selectImage(imgElement, index = -1) {
 
         // Combine into a single array
         const allAnnotations = [...loadedAnnotations, ...loadedPreannotations];
-        
+
         if (setupType === 'Classification') {
             setAnnotations(allAnnotations);
             setSelectedAnnotation(null);
@@ -140,7 +141,7 @@ export async function selectImage(imgElement, index = -1) {
             setSelectedAnnotation(firstVisibleAnnotation);
             updateTagHighlights();
         }
-        
+
         const cachedAnnotations = annotationCache[imageKey] || [];
         if (cachedAnnotations.length > 0) {
             const updatedCachedAnnotations = cachedAnnotations.map(anno => ({
@@ -174,6 +175,15 @@ export async function selectImage(imgElement, index = -1) {
         resizeCanvas();
 
         const filename = imageKey.split('/').pop();
+        // Try to find an image id from the thumbnail/grid DOM data attributes
+        let imageId = null;
+        try {
+            const idHolder = imgElement.closest('[data-image-id]') || document.querySelector(`.thumbnail-row[data-id="${filename}"]`) || document.querySelector(`.grid-card[data-id="${filename}"]`) || document.querySelector(`#list-table tr[data-id="${filename}"]`);
+            if (idHolder) imageId = idHolder.getAttribute('data-image-id') || null;
+        } catch (err) {
+            console.warn('Error finding image id element:', err);
+            imageId = null;
+        }
         const isAnnotated = loadedAnnotations.length > 0 || isReviewed;
         const isPreannotated = loadedPreannotations.length > 0 && !isAnnotated;
         updateAnnotationStatus(imageKey, isAnnotated, isPreannotated);
@@ -187,7 +197,11 @@ export async function selectImage(imgElement, index = -1) {
 
         const imageInfoText = document.querySelector('.image-info-text');
         if (imageInfoText) {
-            imageInfoText.textContent = `${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+            if (imageId) {
+                imageInfoText.textContent = `ID: ${imageId} | ${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+            } else {
+                imageInfoText.textContent = `${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+            }
         }
         updateAnnotationSummary();
         drawImage();
@@ -231,3 +245,96 @@ export function resizeCanvas() {
     viewport.zoom = Math.max(viewport.minZoom, viewport.zoom);
     resetView();
 }
+
+// Single-image delete handler: deletes currently selected image from project using modal confirmation
+document.addEventListener('DOMContentLoaded', () => {
+    const deleteBtn = document.getElementById('delete-image-btn');
+    const singleDeleteModal = document.getElementById('delete-single-confirm-modal');
+    const singleDeleteMsg = singleDeleteModal && singleDeleteModal.querySelector('#delete-single-message');
+    const confirmSingleDelete = singleDeleteModal && singleDeleteModal.querySelector('#confirm-delete-single');
+    const cancelSingleDelete = singleDeleteModal && singleDeleteModal.querySelector('#cancel-delete-single');
+    const cancelSingleDeleteFooter = singleDeleteModal && singleDeleteModal.querySelector('#cancel-delete-single-footer');
+    const headerCloseSingle = singleDeleteModal && singleDeleteModal.querySelector('.close-btn#cancel-delete-single');
+
+    if (!deleteBtn || !singleDeleteModal || !confirmSingleDelete || !cancelSingleDelete) return;
+
+    let pendingImageKey = null;
+
+    deleteBtn.addEventListener('click', (e) => {
+        if (!currentImageKey) {
+            alert('No image selected');
+            return;
+        }
+        pendingImageKey = currentImageKey;
+        const filename = pendingImageKey.split('/').pop();
+        singleDeleteMsg.textContent = `Are you sure you want to delete ${filename}? This action cannot be undone.`;
+        singleDeleteModal.style.display = 'flex';
+    });
+
+    const closeModal = () => {
+        singleDeleteModal.style.display = 'none';
+        pendingImageKey = null;
+    };
+
+    if (cancelSingleDelete) cancelSingleDelete.addEventListener('click', () => closeModal());
+    if (cancelSingleDeleteFooter) cancelSingleDeleteFooter.addEventListener('click', () => closeModal());
+    if (headerCloseSingle) headerCloseSingle.addEventListener('click', () => closeModal());
+
+    confirmSingleDelete.addEventListener('click', async () => {
+        if (!pendingImageKey) return closeModal();
+        const filename = pendingImageKey.split('/').pop();
+        const conf = JSON.parse(document.getElementById('app-config').textContent);
+        const projectName = conf.projectName;
+
+        // Determine target filename (next or previous) BEFORE removing DOM nodes
+        const thumbRows = Array.from(document.querySelectorAll('.thumbnail-row'));
+        let currentIndex = -1;
+        for (let i = 0; i < thumbRows.length; i++) {
+            if (thumbRows[i].dataset.id === filename) {
+                currentIndex = i;
+                break;
+            }
+        }
+        let targetFilename = null;
+        if (currentIndex >= 0) {
+            if (currentIndex < thumbRows.length - 1) {
+                targetFilename = thumbRows[currentIndex + 1].dataset.id;
+            } else if (currentIndex > 0) {
+                targetFilename = thumbRows[currentIndex - 1].dataset.id;
+            }
+        }
+
+        try {
+            const resp = await fetch('/annotation/delete_images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project: projectName, images: [pendingImageKey] })
+            });
+            const result = await resp.json();
+            if (result.success) {
+                // Remove DOM nodes for this image
+                document.querySelectorAll(`.grid-card[data-id="${filename}"]`).forEach(n => n.remove());
+                document.querySelectorAll(`.thumbnail-row[data-id="${filename}"]`).forEach(n => n.remove());
+                document.querySelectorAll(`#list-table tr[data-id="${filename}"]`).forEach(n => n.remove());
+
+                // If we found a target filename, navigate to same page with focus param to load that image
+                if (targetFilename) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('focus', targetFilename);
+                    window.location.href = url.toString();
+                    return; // page will reload
+                }
+
+                // no target — reload current page (will show empty state)
+                window.location.reload();
+            } else {
+                alert(result.error || 'Failed to delete image');
+            }
+        } catch (err) {
+            console.error('Delete image error:', err);
+            alert('Failed to delete image');
+        } finally {
+            closeModal();
+        }
+    });
+});
