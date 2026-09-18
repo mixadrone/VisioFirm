@@ -1,3 +1,4 @@
+import { initializeImageListControls } from './imageListControls.js';
 import {
     initGlobals,
     currentImage,
@@ -15,7 +16,7 @@ import {
     isAnnotationLabelHidden,
     setSelectedAnnotation
 } from './globals.js';
-import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, toggleView } from './viewManagement.js';
+import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, filterImages, refreshImageList, toggleView } from './viewManagement.js';
 import { initToolControls } from './toolControls.js';
 import { initAnnotationInteraction } from './annotationInteraction.js';
 import { initKeyboardShortcuts } from './keyboardShortcuts.js';
@@ -41,8 +42,9 @@ function hideLoadingAnimation() {
 
 // In main.js
 export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
-    const filename = imagePath.split('/').pop();
-    const gridCard = document.querySelector(`#grid-thumbnails .image-checkbox[data-path="${imagePath}"]`)?.closest('.grid-card');
+    const filename = decodeURIComponent(imagePath.replaceAll('\\', '/').split('/').pop());
+    const findRow = selector => Array.from(document.querySelectorAll(selector)).find(row => row.dataset.id === filename);
+    const gridCard = findRow('#grid-thumbnails .grid-card');
     if (gridCard) {
         const statusSpan = gridCard.querySelector('.image-status');
         const checkSpan = gridCard.querySelector('.annotated-check');
@@ -64,7 +66,7 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
             checkSpan.remove();
         }
     }
-    const listRow = document.querySelector(`#list-table .image-checkbox[data-path="${imagePath}"]`)?.closest('tr');
+    const listRow = findRow('#list-table tbody tr');
     if (listRow) {
         listRow.dataset.annotated = isAnnotated;
         listRow.dataset.preannotated = isPreannotated ? 'true' : 'false';
@@ -85,11 +87,12 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
             annotatorCell.innerHTML = '-';
         }
     }
-    const thumbnailRow = document.querySelector(`.thumbnail-row[data-id="${filename}"]`);
+    const thumbnailRow = findRow('#annotation-view .thumbnail-row');
     if (thumbnailRow) {
         thumbnailRow.dataset.annotated = isAnnotated;
         thumbnailRow.dataset.preannotated = isPreannotated ? 'true' : 'false';
     }
+    refreshImageList();
 }
 
 function updateBulkActionsState() {
@@ -97,7 +100,7 @@ function updateBulkActionsState() {
     const hasSelections = checkboxes.length > 0;
     document.getElementById('download-btn').disabled = !hasSelections;
     document.getElementById('delete-images-btn').disabled = !hasSelections;
-    const totalCheckboxes = document.querySelectorAll('.image-checkbox').length;
+    const totalCheckboxes = document.querySelectorAll('.grid-card:not([hidden]) .image-checkbox, #list-table tr:not([hidden]) .image-checkbox').length;
     const selectAllBtn = document.getElementById('select-all-btn');
     if (checkboxes.length === totalCheckboxes && totalCheckboxes > 0) {
         selectAllBtn.innerHTML = '<i class="fas fa-check-square"></i> Deselect All';
@@ -142,13 +145,12 @@ function generateClassTags() {
                 if (selectedAnnotation) {
                     pushToUndoStack();
                     selectedAnnotation.label = cls;
+                    setSelectedClass(cls);
                     drawImage();
                     updateTagHighlights();
                 } else {
-                    document.querySelectorAll('.class-tag')
-                        .forEach(t => t.classList.remove('selected'));
-                    tag.classList.add('selected');
                     setSelectedClass(cls);
+                    updateTagHighlights();
                 }
             });
 
@@ -253,6 +255,9 @@ function showSuccessModal(message) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Share the guard across module URLs so page handlers are installed only once.
+    if (document.documentElement.dataset.annotationInitialized === 'true') return;
+    document.documentElement.dataset.annotationInitialized = 'true';
     initGlobals();
     const config = JSON.parse(document.getElementById('app-config').textContent);
     const projectName = config.projectName;
@@ -329,47 +334,15 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('viewport-btn-grid').addEventListener('click', () => switchToAnnotationView());
     document.getElementById('viewport-btn-annotation').addEventListener('click', switchToGridView);
 
-    document.querySelectorAll('.thumbnail-row').forEach(row => {
-        row.addEventListener('click', () => {
-            const img = row.querySelector('img');
-            const index = parseInt(row.dataset.index, 10);
-            selectImage(img, index);
-        });
-    });
-
-    ['sort-btn', 'sort-btn-annotation'].forEach(btnId => {
-        const btn = document.getElementById(btnId);
-        if (btn) {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const dropdownContent = btn.nextElementSibling; // .dropdown-content is next sibling
-                if (dropdownContent && dropdownContent.classList.contains('dropdown-content')) {
-                    // Close other dropdowns
-                    document.querySelectorAll('.dropdown-content').forEach(d => {
-                        if (d !== dropdownContent) d.style.display = 'none';
-                    });
-                    // Toggle current
-                    dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
-                }
-            });
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown')) {
-            document.querySelectorAll('.dropdown-content').forEach(d => d.style.display = 'none');
-        }
-    });
+    initializeImageListControls({ sortImages, filterImages, onChange: updateBulkActionsState });
 
     document.querySelectorAll('.thumbnail-row').forEach(row => {
         row.addEventListener('click', () => {
             const img = row.querySelector('img');
-            const index = parseInt(row.dataset.index, 10);
             if (img && !img.src) {
                 img.src = img.dataset.src;
             }
-            selectImage(img, index);
+            selectImage(img);
         });
     });
 
@@ -413,24 +386,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             .forEach(row => row.remove());
                     });
 
-                    document.querySelectorAll('#grid-thumbnails .grid-card').forEach((card, index) => {
-                        const idSpan = card.querySelector('.image-id');
-                        if (idSpan) idSpan.textContent = index;
-                    });
-
-                    document.querySelectorAll('#list-table tbody tr').forEach((row, index) => {
-                        const idCell = row.cells[1];
-                        if (idCell) idCell.textContent = index;
-                        row.dataset.id = index;
-                    });
-
-                    document.querySelectorAll('.thumbnail-row').forEach((row, index) => {
-                        const idCell = row.querySelector('.thumbnail-id');
-                        if (idCell) idCell.textContent = index;
-                        row.dataset.index = index;
-                    });
-
                     deleteModal.style.display = 'none';
+                    refreshImageList();
                     updateBulkActionsState();
                 } else {
                     alert(result.error || 'Failed to delete images');
@@ -516,14 +473,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
-
-    document.querySelectorAll('.dropdown-content a').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            sortImages(e.target.dataset.sort);
-            e.target.closest('.dropdown-content').style.display = 'none';
-        });
-    });
 
     function updateButtonStates() {
         const checkedCount = document.querySelectorAll('.image-checkbox:checked').length;
@@ -647,10 +596,12 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     selectAllBtn.addEventListener('click', () => {
-        const allChecked = document.querySelectorAll('.image-checkbox:checked').length === document.querySelectorAll('.image-checkbox').length;
-        document.querySelectorAll('.image-checkbox').forEach(checkbox => {
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.grid-card:not([hidden]) .image-checkbox, #list-table tr:not([hidden]) .image-checkbox'));
+        const allChecked = visibleCheckboxes.every(checkbox => checkbox.checked);
+        visibleCheckboxes.forEach(checkbox => {
             checkbox.checked = !allChecked;
         });
+        updateBulkActionsState();
         updateButtonStates();
     });
 
@@ -998,28 +949,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     lazyImages.forEach(img => {
         observer.observe(img);
-    });
-
-    document.querySelectorAll('#grid-thumbnails .grid-card img.lazy-load').forEach(img => {
-        img.addEventListener('click', (e) => {
-            if (!e.target.closest('.card-checkbox')) {
-                switchToAnnotationView(img);
-            }
-        });
-    });
-
-    document.querySelectorAll('#list-table tbody tr img.lazy-load').forEach(img => {
-        img.addEventListener('click', (e) => {
-            if (!e.target.closest('.image-checkbox')) {
-                switchToAnnotationView(img);
-            }
-        });
-    });
-
-    document.querySelectorAll('.thumbnail-row img.lazy-load').forEach((img, index) => {
-        img.addEventListener('click', () => {
-            selectImage(img, index);
-        });
     });
 
     const aiPreannotatorBtn = document.getElementById('ai-preannotator-btn');

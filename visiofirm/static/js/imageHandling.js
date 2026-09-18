@@ -19,10 +19,14 @@ import {
     setSelectedAnnotation,
     setCurrentImageIndex,
     updateTagHighlights,
-    isAnnotationLabelHidden
+    isAnnotationLabelHidden,
+    isModified,
+    setIsModified,
+    isAutoSaveEnabled
 } from './globals.js';
 import { drawImage, resetView } from './annotationDrawing.js';
 import { updateAnnotationStatus, updateClassTags } from './main.js';
+import { executeSave } from './saveHandling.js';
 
 export function updateAnnotationSummary() {
     const summary = document.getElementById('annotation-summary');
@@ -55,19 +59,39 @@ function isAnnotationCurrentlyVisible(anno) {
     );
 }
 
-export async function selectImage(imgElement, index = -1) {
+let switchQueue = Promise.resolve();
+
+export function selectImage(imgElement, index = -1) {
+    switchQueue = switchQueue.then(() => _selectImageInternal(imgElement, index)).catch(err => {
+        console.error('Error during selectImage:', err);
+    });
+    return switchQueue;
+}
+
+async function _selectImageInternal(imgElement, index = -1) {
+    if (typeof imgElement === 'function') imgElement = imgElement();
+    if (!imgElement) return;
+    if (imgElement && !imgElement.getAttribute('src')) imgElement.src = imgElement.dataset.src;
     if (!imgElement || !imgElement.getAttribute('src')) {
         console.error('Invalid image element provided to selectImage');
         return;
     }
 
-    const img = new Image();
-    let imageKey = imgElement.getAttribute('src');
-    if (imageKey.startsWith('http')) {
-        const url = new URL(imageKey);
-        imageKey = url.pathname;
+    const imageKey = new URL(imgElement.getAttribute('src'), window.location.href).pathname;
+    if (imageKey === currentImageKey) {
+        return;
     }
     console.log('Selecting Image:', imageKey);
+
+    // Auto-save previous image if auto-save is enabled and modifications were made
+    if (currentImageKey && isAutoSaveEnabled && isModified) {
+        try {
+            if (!await executeSave(true, updateAnnotationStatus)) return;
+        } catch (saveErr) {
+            console.error('Auto-save error before switching image:', saveErr);
+            return;
+        }
+    }
 
     if (currentImageKey) {
         setAnnotationCache({
@@ -76,151 +100,156 @@ export async function selectImage(imgElement, index = -1) {
         });
     }
 
-    img.onload = async () => {
-        setCurrentImageKey(imageKey);
-        setCurrentImageIndex(index >= 0 ? index : Array.from(thumbnailImages).indexOf(imgElement));
-        setCurrentImage(img);
+    const img = new Image();
+    return new Promise((resolve) => {
+        img.onload = async () => {
+            setCurrentImageKey(imageKey);
+            setCurrentImageIndex(Array.from(thumbnailImages).indexOf(imgElement));
+            setCurrentImage(img);
 
-        let loadedAnnotations = [];
-        let loadedPreannotations = [];
-        let isReviewed = false;
-        try {
-            const projectName = JSON.parse(document.getElementById('app-config').textContent).projectName;
-            const imagePath = imageKey.split('/').slice(-1)[0];
-            console.log('Fetching annotations for:', imagePath);
-            const response = await fetch(`/annotation/get_annotations/${projectName}/${encodeURIComponent(imagePath)}`);
-            const result = await response.json();
+            let loadedAnnotations = [];
+            let loadedPreannotations = [];
+            let isReviewed = false;
+            let statusLoaded = false;
+            try {
+                const projectName = JSON.parse(document.getElementById('app-config').textContent).projectName;
+                const imagePath = decodeURIComponent(imageKey.split('/').slice(-1)[0]);
+                console.log('Fetching annotations for:', imagePath);
+                const response = await fetch(`/annotation/get_annotations/${projectName}/${encodeURIComponent(imagePath)}`);
+                const result = await response.json();
 
-            if (result.success) {
-                loadedAnnotations = result.annotations.map(anno => ({
-                    ...anno,
-                    type: setupType === "Oriented Bounding Box" ? 'obbox' : anno.type,
-                    rotation: anno.rotation || 0,
-                    isPreannotation: false // Flag for regular annotations
-                }));
-                loadedPreannotations = result.preannotations.map(preanno => ({
-                    ...preanno,
-                    type: setupType === "Oriented Bounding Box" ? 'obbox' : preanno.type,
-                    rotation: preanno.rotation || 0,
-                    confidence: preanno.confidence,
-                    isPreannotation: true // Flag for preannotations
-                }));
-                isReviewed = result.reviewed || false;
-                console.log('Fetched Annotations:', loadedAnnotations);
-                console.log('Fetched Preannotations:', loadedPreannotations);
-                console.log('Reviewed:', isReviewed);
-            } else {
-                console.error('Failed to fetch annotations:', result.error);
-            }
-        } catch (error) {
-            console.error('Error fetching annotations:', error);
-        }
-
-        // Combine into a single array
-        const allAnnotations = [...loadedAnnotations, ...loadedPreannotations];
-
-        if (setupType === 'Classification') {
-            setAnnotations(allAnnotations);
-            setSelectedAnnotation(null);
-            if (allAnnotations.length > 0) {
-                setSelectedLabel(allAnnotations[0].label);
-                // Filter out preannotations if needed, or handle confidence
-                const preanno = loadedPreannotations[0];
-                if (preanno && preanno.confidence >= confidenceThreshold) {
-                    // Optionally suggest preannotation, but for now, use loaded annotation
+                if (response.ok && result.success) {
+                    statusLoaded = true;
+                    loadedAnnotations = result.annotations.map(anno => ({
+                        ...anno,
+                        type: setupType === "Oriented Bounding Box" ? 'obbox' : anno.type,
+                        rotation: anno.rotation || 0,
+                        isPreannotation: false // Flag for regular annotations
+                    }));
+                    loadedPreannotations = result.preannotations.map(preanno => ({
+                        ...preanno,
+                        type: setupType === "Oriented Bounding Box" ? 'obbox' : preanno.type,
+                        rotation: preanno.rotation || 0,
+                        confidence: preanno.confidence,
+                        isPreannotation: true // Flag for preannotations
+                    }));
+                    isReviewed = result.reviewed || false;
+                    console.log('Fetched Annotations:', loadedAnnotations);
+                    console.log('Fetched Preannotations:', loadedPreannotations);
+                    console.log('Reviewed:', isReviewed);
+                } else {
+                    console.error('Failed to fetch annotations:', result.error);
                 }
-            } else {
-                setSelectedLabel(null);
+            } catch (error) {
+                console.error('Error fetching annotations:', error);
             }
-            updateClassTags(); // Refresh UI with selected label
-        } else {
-            setAnnotations(allAnnotations);
 
-            // Select the first annotation to show handles
-            const firstVisibleAnnotation = allAnnotations.find(isAnnotationCurrentlyVisible) || null;
-            setSelectedAnnotation(firstVisibleAnnotation);
-            updateTagHighlights();
-        }
+            // Combine into a single array
+            const allAnnotations = [...loadedAnnotations, ...loadedPreannotations];
 
-        const cachedAnnotations = annotationCache[imageKey] || [];
-        if (cachedAnnotations.length > 0) {
-            const updatedCachedAnnotations = cachedAnnotations.map(anno => ({
-                ...anno,
-                type: setupType === "Oriented Bounding Box" ? 'obbox' : anno.type,
-                rotation: anno.rotation || 0,
-                isPreannotation: anno.isPreannotation || false // Preserve flag if cached
-            }));
             if (setupType === 'Classification') {
-                setAnnotations(updatedCachedAnnotations);
+                setAnnotations(allAnnotations);
                 setSelectedAnnotation(null);
-                if (updatedCachedAnnotations.length > 0) {
-                    setSelectedLabel(updatedCachedAnnotations[0].label);
-                    updateClassTags();
+                if (allAnnotations.length > 0) {
+                    setSelectedLabel(allAnnotations[0].label);
                 } else {
                     setSelectedLabel(null);
                 }
+                updateClassTags(); // Refresh UI with selected label
             } else {
-                setAnnotations(updatedCachedAnnotations);
-                const firstVisibleCachedAnnotation = updatedCachedAnnotations.find(isAnnotationCurrentlyVisible) || null;
-                setSelectedAnnotation(firstVisibleCachedAnnotation);
-                console.log('Using cached annotations:', updatedCachedAnnotations);
+                setAnnotations(allAnnotations);
+                setSelectedAnnotation(null);
+                updateTagHighlights();
             }
-        }
 
-        setUndoStack({
-            ...undoStack,
-            [imageKey]: undoStack[imageKey] || []
-        });
+            const cachedAnnotations = annotationCache[imageKey] || [];
+            if (Object.prototype.hasOwnProperty.call(annotationCache, imageKey)) {
+                const updatedCachedAnnotations = cachedAnnotations.map(anno => ({
+                    ...anno,
+                    type: setupType === "Oriented Bounding Box" ? 'obbox' : anno.type,
+                    rotation: anno.rotation || 0,
+                    isPreannotation: anno.isPreannotation || false // Preserve flag if cached
+                }));
+                if (setupType === 'Classification') {
+                    setAnnotations(updatedCachedAnnotations);
+                    setSelectedAnnotation(null);
+                    if (updatedCachedAnnotations.length > 0) {
+                        setSelectedLabel(updatedCachedAnnotations[0].label);
+                        updateClassTags();
+                    } else {
+                        setSelectedLabel(null);
+                    }
+                } else {
+                    setAnnotations(updatedCachedAnnotations);
+                    setSelectedAnnotation(null);
+                    updateTagHighlights();
+                    console.log('Using cached annotations:', updatedCachedAnnotations);
+                }
+            }
 
-        resizeCanvas();
+            setUndoStack({
+                ...undoStack,
+                [imageKey]: undoStack[imageKey] || []
+            });
 
-        const filename = imageKey.split('/').pop();
-        // Try to find an image id from the thumbnail/grid DOM data attributes
-        let imageId = null;
-        try {
-            const idHolder = imgElement.closest('[data-image-id]') || document.querySelector(`.thumbnail-row[data-id="${filename}"]`) || document.querySelector(`.grid-card[data-id="${filename}"]`) || document.querySelector(`#list-table tr[data-id="${filename}"]`);
-            if (idHolder) imageId = idHolder.getAttribute('data-image-id') || null;
-        } catch (err) {
-            console.warn('Error finding image id element:', err);
-            imageId = null;
-        }
-        const isAnnotated = loadedAnnotations.length > 0 || isReviewed;
-        const isPreannotated = loadedPreannotations.length > 0 && !isAnnotated;
-        updateAnnotationStatus(imageKey, isAnnotated, isPreannotated);
+            resizeCanvas();
 
-        const statusElement = document.querySelector(`[data-id="${filename}"] .image-status`);
-        if (statusElement) {
-            statusElement.textContent = isAnnotated ? 'Annotated' : (isPreannotated ? 'Pre-Annotated' : 'Not Annotated');
-            statusElement.dataset.annotated = isAnnotated ? 'true' : 'false';
-            statusElement.dataset.preannotated = isPreannotated ? 'true' : 'false';
-        }
+            const filename = decodeURIComponent(imageKey.split('/').pop());
+            // Try to find an image id from the thumbnail/grid DOM data attributes
+            let imageId = null;
+            try {
+                const idHolder = imgElement.closest('[data-image-id]') || document.querySelector(`.thumbnail-row[data-id="${filename}"]`) || document.querySelector(`.grid-card[data-id="${filename}"]`) || document.querySelector(`#list-table tr[data-id="${filename}"]`);
+                if (idHolder) imageId = idHolder.getAttribute('data-image-id') || null;
+            } catch (err) {
+                console.warn('Error finding image id element:', err);
+                imageId = null;
+            }
+            const isAnnotated = loadedAnnotations.length > 0 || isReviewed;
+            const isPreannotated = loadedPreannotations.length > 0 && !isAnnotated;
+            if (statusLoaded) updateAnnotationStatus(imageKey, isAnnotated, isPreannotated);
 
-        const imageInfoText = document.querySelector('.image-info-text');
-        if (imageInfoText) {
-            if (imageId) {
-                imageInfoText.textContent = `ID: ${imageId} | ${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+            const statusElement = document.querySelector(`[data-id="${filename}"] .image-status`);
+            if (statusElement && statusLoaded) {
+                statusElement.textContent = isAnnotated ? 'Annotated' : (isPreannotated ? 'Pre-Annotated' : 'Not Annotated');
+                statusElement.dataset.annotated = isAnnotated ? 'true' : 'false';
+                statusElement.dataset.preannotated = isPreannotated ? 'true' : 'false';
+            }
+
+            const imageInfoText = document.querySelector('.image-info-text');
+            if (imageInfoText) {
+                if (imageId) {
+                    imageInfoText.textContent = `ID: ${imageId} | ${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+                } else {
+                    imageInfoText.textContent = `${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+                }
+            }
+            updateAnnotationSummary();
+            drawImage();
+            setIsModified(false); // Clean state for newly active image
+
+            document.querySelectorAll('.thumbnail-row').forEach(row => row.classList.remove('selected'));
+            const annotationRow = document.querySelector(`.thumbnail-row[data-id="${filename}"]`);
+            if (annotationRow) {
+                annotationRow.classList.add('selected');
+                annotationRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
-                imageInfoText.textContent = `${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
+                console.warn(`No thumbnail-row found with data-id: ${filename}`);
             }
-        }
-        updateAnnotationSummary();
-        drawImage();
 
-        document.querySelectorAll('.thumbnail-row').forEach(row => row.classList.remove('selected'));
-        const annotationRow = document.querySelector(`.thumbnail-row[data-id="${filename}"]`);
-        if (annotationRow) {
-            annotationRow.classList.add('selected');
-            annotationRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            console.warn(`No thumbnail-row found with data-id: ${filename}`);
-        }
-    };
+            document.querySelectorAll('.grid-card').forEach(card => card.classList.remove('selected'));
+            const gridCard = imgElement.closest('.grid-card');
+            if (gridCard) gridCard.classList.add('selected');
 
-    img.src = imageKey;
+            resolve();
+        };
 
-    document.querySelectorAll('.grid-card').forEach(card => card.classList.remove('selected'));
-    const gridCard = imgElement.closest('.grid-card');
-    if (gridCard) gridCard.classList.add('selected');
+        img.onerror = () => {
+            console.error('Failed to load image:', imageKey);
+            resolve();
+        };
+
+        img.src = imageKey;
+    });
 }
 
 export function resizeCanvas() {

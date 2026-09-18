@@ -1,4 +1,4 @@
-import { viewport, currentImage, currentImageKey, undoStack, annotations, gridEnabled, gridSize } from './globals.js';
+import { viewport, currentImage, currentImageKey, undoStack, annotations, gridEnabled, gridSize, setIsModified } from './globals.js';
 
 export function toImageCoords(x, y) {
     return { x: (x - viewport.x) / viewport.zoom, y: (y - viewport.y) / viewport.zoom };
@@ -146,6 +146,7 @@ export function clampAnnotationToBounds(annotation) {
 
 export function pushToUndoStack() {
     if (!currentImageKey) return;
+    setIsModified(true);
     if (!undoStack[currentImageKey]) undoStack[currentImageKey] = [];
     const stack = undoStack[currentImageKey];
     if (stack.length >= 50) stack.shift();

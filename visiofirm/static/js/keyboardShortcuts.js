@@ -1,3 +1,4 @@
+import { navigateImage } from './viewManagement.js';
 // Updated keyboardShortcuts.js with additional check for annotation-view visibility
 
 import {
@@ -7,8 +8,6 @@ import {
     undoStack,
     currentAnnotation,
     mode,
-    currentImageIndex,
-    thumbnailImages,
     currentImage,
     viewport,
     currentImageKey,
@@ -20,13 +19,20 @@ import {
     clipboardImageResolution,
     setClipboardImageResolution,
     setIsRotating,
-    isRotating
+    isRotating,
+    setIsModified,
+    setSelectedClass,
+    updateTagHighlights
 } from './globals.js';
 import { drawImage, resetView } from './annotationDrawing.js';
-import { selectImage } from './imageHandling.js';
+import { updateAnnotationSummary } from './imageHandling.js';
 import { pushToUndoStack, clampToImageBounds } from './annotationCore.js';
 
+let shortcutsInitialized = false;
+
 export function initKeyboardShortcuts() {
+    if (shortcutsInitialized) return;
+    shortcutsInitialized = true;
     document.addEventListener('keydown', (e) => {
         // Check if we are in annotation-view; if not, skip all shortcuts
         const annotationView = document.getElementById('annotation-view');
@@ -36,7 +42,7 @@ export function initKeyboardShortcuts() {
 
         // Skip all custom shortcuts if focus is on an input, textarea, or contenteditable element.
         // This allows default browser behavior (e.g., typing, arrow navigation in text) without interference.
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) {
             return; // Do nothing; let the default key behavior happen.
         }
 
@@ -110,7 +116,11 @@ export function initKeyboardShortcuts() {
             const newStack = undoStack[currentImageKey];
             const lastState = newStack.pop();
             setAnnotations(lastState);
+            setIsModified(true);
             setSelectedAnnotation(lastState.length > 0 ? lastState[lastState.length - 1] : null);
+            setSelectedPointIndex(-1);
+            updateTagHighlights();
+            updateAnnotationSummary();
             drawImage();
         }
         else if (e.key === 'Delete' && selectedAnnotation) {
@@ -118,7 +128,11 @@ export function initKeyboardShortcuts() {
             pushToUndoStack();
             const newAnnotations = annotations.filter(a => a !== selectedAnnotation);
             setAnnotations(newAnnotations);
-            setSelectedAnnotation(newAnnotations.length > 0 ? newAnnotations[newAnnotations.length - 1] : null);
+            setSelectedAnnotation(null);
+            setSelectedPointIndex(-1);
+            setIsModified(true);
+            updateTagHighlights();
+            updateAnnotationSummary();
             drawImage();
         }
         else if (e.key === 'Escape' && currentAnnotation) {
@@ -145,17 +159,21 @@ export function initKeyboardShortcuts() {
                 drawImage();
             }
         }
-        else if (e.ctrlKey && e.key === 's') {
+        else if ((e.code === 'KeyS' || e.key.toLowerCase() === 's' || e.key === 'Enter') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+            // Leave Enter to focused controls and modal dialogs.
+            if (e.target.closest?.('[role="dialog"], .modal, #annotation-style-modal')) return;
+            if (e.key === 'Enter' && e.target.closest?.('button, a, select')) return;
             e.preventDefault();
-            document.getElementById('approve-btn').click();
+            if (!e.repeat) document.getElementById('approve-btn').click();
         }
-        else if (!e.ctrlKey && e.key === 'ArrowRight' && currentImageIndex < thumbnailImages.length - 1) {
+        else if (!e.ctrlKey && e.key === 'ArrowRight') {
             e.preventDefault();
-            selectImage(thumbnailImages[currentImageIndex + 1], currentImageIndex + 1);
+            // Holding an arrow must not queue additional image switches while loading.
+            if (!e.repeat) navigateImage(1);
         }
-        else if (!e.ctrlKey && e.key === 'ArrowLeft' && currentImageIndex > 0) {
+        else if (!e.ctrlKey && e.key === 'ArrowLeft') {
             e.preventDefault();
-            selectImage(thumbnailImages[currentImageIndex - 1], currentImageIndex - 1);
+            if (!e.repeat) navigateImage(-1);
         }
         else if (e.ctrlKey && selectedAnnotation && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             e.preventDefault();
@@ -189,7 +207,7 @@ export function initKeyboardShortcuts() {
                 drawImage();
             }
         }
-        else if (e.key === 's' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        else if ((e.code === 'KeyV' || e.key.toLowerCase() === 'v') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
             e.preventDefault();
             setMode('select');
             drawImage();
@@ -205,6 +223,31 @@ export function initKeyboardShortcuts() {
                 drawImage();
             });
         }
+        else if (/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+            e.preventDefault();
+            const configEl = document.getElementById('app-config');
+            if (configEl) {
+                try {
+                    const config = JSON.parse(configEl.textContent);
+                    const classIdx = parseInt(e.key, 10) - 1;
+                    if (Array.isArray(config.classes) && classIdx >= 0 && classIdx < config.classes.length) {
+                        const targetClass = config.classes[classIdx];
+                        if (selectedAnnotation) {
+                            pushToUndoStack();
+                            selectedAnnotation.label = targetClass;
+                            setSelectedClass(targetClass);
+                            drawImage();
+                            updateTagHighlights();
+                        } else {
+                            setSelectedClass(targetClass);
+                            updateTagHighlights();
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error selecting class via shortcut:', err);
+                }
+            }
+        }
     });
 
     document.addEventListener('keyup', (e) => {
@@ -215,7 +258,7 @@ export function initKeyboardShortcuts() {
         }
 
         // Apply the same input focus check for keyup events as well.
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) {
             return;
         }
 

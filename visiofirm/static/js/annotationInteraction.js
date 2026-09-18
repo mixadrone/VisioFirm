@@ -22,6 +22,11 @@ import {
     setSelectedPointIndex,
     setIsRightClickEditing,
     setInitialRotation,
+    setInitialCorners,
+    initialBox,
+    setInitialBox,
+    isPanning,
+    setIsPanning,
     isRotating,
     setIsRotating,
     selectedClass,
@@ -33,6 +38,8 @@ import { drawImage } from './annotationDrawing.js';
 import { setHoveredAnnotation } from './annotationDrawing.js';
 import { toImageCoords, toCanvasCoords, clampToImageBounds, pushToUndoStack, clampAnnotationToBounds } from './annotationCore.js';
 import { segmentArea } from './sam.js';
+
+let pendingDrawStart = null;
 
 export function getMousePos(canvas, e) {
     const rect = canvas.getBoundingClientRect();
@@ -224,6 +231,16 @@ function handleMouseDown(e) {
         return;
     }
 
+    // The middle button pans temporarily; the Pan tool also enables left-button panning.
+    if (e.button === 1 || (mode === 'pan' && e.button === 0)) {
+        e.preventDefault();
+        setIsPanning(true);
+        setStartX(pos.x - viewport.x);
+        setStartY(pos.y - viewport.y);
+        canvas.style.cursor = 'grabbing';
+        return;
+    }
+
     if (e.button === 2 && !e.shiftKey) {
         const clickedAnnotation = findSelectedAnnotation(pos);
         if (clickedAnnotation) {
@@ -234,6 +251,34 @@ function handleMouseDown(e) {
             setStartX(pos.x);
             setStartY(pos.y);
             pushToUndoStack();
+            if (clickedAnnotation.type === 'rect' || clickedAnnotation.type === 'obbox') {
+                setInitialBox({
+                    x: clickedAnnotation.x,
+                    y: clickedAnnotation.y,
+                    width: clickedAnnotation.width,
+                    height: clickedAnnotation.height
+                });
+                if (selectedPointIndex >= 0) {
+                    const theta = (clickedAnnotation.rotation || 0) * Math.PI / 180;
+                    const cosTheta = Math.cos(theta);
+                    const sinTheta = Math.sin(theta);
+                    const centerX = clickedAnnotation.x + clickedAnnotation.width / 2;
+                    const centerY = clickedAnnotation.y + clickedAnnotation.height / 2;
+                    const localCorners = [
+                        { x: -clickedAnnotation.width / 2, y: -clickedAnnotation.height / 2 },
+                        { x: clickedAnnotation.width / 2, y: -clickedAnnotation.height / 2 },
+                        { x: clickedAnnotation.width / 2, y: clickedAnnotation.height / 2 },
+                        { x: -clickedAnnotation.width / 2, y: clickedAnnotation.height / 2 }
+                    ];
+                    const imageCorners = localCorners.map(local => {
+                        const dx = local.x * cosTheta - local.y * sinTheta;
+                        const dy = local.x * sinTheta + local.y * cosTheta;
+                        return { x: centerX + dx, y: centerY + dy };
+                    });
+                    setInitialCorners(imageCorners);
+                    setInitialRotation(clickedAnnotation.rotation || 0);
+                }
+            }
             drawImage();
             return;
         } else if (selectedAnnotation && e.ctrlKey && selectedAnnotation.type === 'polygon') {
@@ -245,6 +290,14 @@ function handleMouseDown(e) {
                 pushToUndoStack();
                 selectedAnnotation.points.push(clampToImageBounds(imgPos));
             }
+            drawImage();
+            return;
+        } else {
+            // RMB on empty space: clear selection
+            setSelectedAnnotation(null);
+            setSelectedPointIndex(-1);
+            setInitialBox(null);
+            updateTagHighlights();
             drawImage();
             return;
         }
@@ -260,7 +313,6 @@ function handleMouseDown(e) {
     }
 
     if (mode === 'rect' && e.button === 0) {
-        setIsDrawing(true);
         const clampedPos = clampToImageBounds(imgPos);
         if (e.altKey && setupType === "Oriented Bounding Box") {
             if (selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
@@ -282,27 +334,42 @@ function handleMouseDown(e) {
             };
             pushToUndoStack();
             annotations.push(newAnnotation);
+            setSelectedAnnotation(newAnnotation);
             updateTagHighlights();
             setCurrentAnnotation(null);
             setIsDrawing(false);
             drawImage();
         } else {
-            setCurrentAnnotation({
-                type: setupType === "Oriented Bounding Box" ? 'obbox' : 'rect',
+            // LMB always draws a new bounding box (even when clicking inside an existing object)
+            // Box creation is deferred until dragging exceeds movement threshold
+            pendingDrawStart = {
+                startX: pos.x,
+                startY: pos.y,
                 origX: clampedPos.x,
-                origY: clampedPos.y,
-                x: clampedPos.x,
-                y: clampedPos.y,
-                width: 0,
-                height: 0,
-                rotation: 0,
-                label: selectedClass
-            });
+                origY: clampedPos.y
+            };
+            setCurrentAnnotation(null);
+            setIsDrawing(false);
+            drawImage();
         }
     }
 
     else if (mode === 'polygon' && e.button === 0) {
         if (!currentAnnotation) {
+            const clickedAnnotation = findSelectedAnnotation(pos);
+            if (clickedAnnotation) {
+                setSelectedAnnotation(clickedAnnotation);
+                updateTagHighlights();
+                setIsDragging(true);
+                setStartX(pos.x);
+                setStartY(pos.y);
+                pushToUndoStack();
+                drawImage();
+                return;
+            }
+            setSelectedAnnotation(null);
+            setSelectedPointIndex(-1);
+            updateTagHighlights();
             setCurrentAnnotation({
                 type: 'polygon',
                 points: [clampToImageBounds(imgPos)],
@@ -317,6 +384,7 @@ function handleMouseDown(e) {
                 if (currentAnnotation.points.length > 2) {
                     pushToUndoStack();
                     annotations.push(currentAnnotation);
+                    setSelectedAnnotation(currentAnnotation);
                     updateTagHighlights();
                 }
                 setCurrentAnnotation(null);
@@ -374,7 +442,18 @@ function handleMouseMove(e) {
     setHoveredAnnotation(hovered);
     drawImage();
 
-    if (isRotating && selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
+    if (isPanning || (e.shiftKey && isDragging)) {
+        viewport.x = pos.x - startX;
+        viewport.y = pos.y - startY;
+        canvas.style.cursor = 'grabbing';
+        drawImage();
+        return;
+    }
+    else if (mode === 'pan') {
+        canvas.style.cursor = 'grab';
+        return;
+    }
+    else if (isRotating && selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
         const center = {
             x: selectedAnnotation.x + selectedAnnotation.width / 2,
             y: selectedAnnotation.y + selectedAnnotation.height / 2
@@ -384,28 +463,43 @@ function handleMouseMove(e) {
         drawImage();
         return;
     }
-    else if (e.shiftKey && isDragging) {
-        viewport.x = pos.x - startX;
-        viewport.y = pos.y - startY;
-        drawImage();
-    }
-    else if (mode === 'rect' && isDrawing && currentAnnotation) {
-        const clampedPos = clampToImageBounds(imgPos);
-        const newX = Math.min(currentAnnotation.origX, clampedPos.x);
-        const newY = Math.min(currentAnnotation.origY, clampedPos.y);
-        const newWidth = Math.abs(clampedPos.x - currentAnnotation.origX);
-        const newHeight = Math.abs(clampedPos.y - currentAnnotation.origY);
-        currentAnnotation.x = newX;
-        currentAnnotation.y = newY;
-        currentAnnotation.width = newWidth;
-        currentAnnotation.height = newHeight;
-        drawImage();
+    else if (mode === 'rect') {
+        if (!isDrawing && pendingDrawStart) {
+            const dragDist = Math.hypot(pos.x - pendingDrawStart.startX, pos.y - pendingDrawStart.startY);
+            if (dragDist > 4) {
+                setIsDrawing(true);
+                setCurrentAnnotation({
+                    type: setupType === "Oriented Bounding Box" ? 'obbox' : 'rect',
+                    origX: pendingDrawStart.origX,
+                    origY: pendingDrawStart.origY,
+                    x: pendingDrawStart.origX,
+                    y: pendingDrawStart.origY,
+                    width: 0,
+                    height: 0,
+                    rotation: 0,
+                    label: selectedClass
+                });
+            }
+        }
+
+        if (isDrawing && currentAnnotation) {
+            const clampedPos = clampToImageBounds(imgPos);
+            const newX = Math.min(currentAnnotation.origX, clampedPos.x);
+            const newY = Math.min(currentAnnotation.origY, clampedPos.y);
+            const newWidth = Math.abs(clampedPos.x - currentAnnotation.origX);
+            const newHeight = Math.abs(clampedPos.y - currentAnnotation.origY);
+            currentAnnotation.x = newX;
+            currentAnnotation.y = newY;
+            currentAnnotation.width = newWidth;
+            currentAnnotation.height = newHeight;
+            drawImage();
+        }
     }
     else if (isDragging && selectedAnnotation) {
         const dx = (pos.x - startX) / viewport.zoom;
         const dy = (pos.y - startY) / viewport.zoom;
 
-        if (isRightClickEditing || mode === 'select') {
+        if (isRightClickEditing || mode === 'select' || mode === 'rect' || mode === 'polygon') {
             if (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox') {
                 if (selectedPointIndex >= 0) {
                     const clampedPos = clampToImageBounds(imgPos);
@@ -539,56 +633,89 @@ function handleMouseMove(e) {
                     
                         clampAnnotationToBounds(selectedAnnotation);
                     } else {
-                        const initialWidth = selectedAnnotation.width;
-                        const initialHeight = selectedAnnotation.height;
-                        const initialX = selectedAnnotation.x;
-                        const initialY = selectedAnnotation.y;
+                        const baseBox = initialBox || {
+                            x: selectedAnnotation.x,
+                            y: selectedAnnotation.y,
+                            width: selectedAnnotation.width,
+                            height: selectedAnnotation.height
+                        };
+                        const x1 = baseBox.x;
+                        const y1 = baseBox.y;
+                        const x2 = baseBox.x + baseBox.width;
+                        const y2 = baseBox.y + baseBox.height;
 
                         switch (selectedPointIndex) {
-                            case 0:
-                                selectedAnnotation.x = clampedPos.x;
-                                selectedAnnotation.y = clampedPos.y;
-                                selectedAnnotation.width = initialWidth + (initialX - clampedPos.x);
-                                selectedAnnotation.height = initialHeight + (initialY - clampedPos.y);
+                            case 0: { // Top-Left corner: anchor is bottom-right (x2, y2)
+                                const curX = Math.min(clampedPos.x, x2 - 1);
+                                const curY = Math.min(clampedPos.y, y2 - 1);
+                                selectedAnnotation.x = curX;
+                                selectedAnnotation.y = curY;
+                                selectedAnnotation.width = x2 - curX;
+                                selectedAnnotation.height = y2 - curY;
                                 break;
-                            case 1:
-                                selectedAnnotation.y = clampedPos.y;
-                                selectedAnnotation.width = clampedPos.x - initialX;
-                                selectedAnnotation.height = initialHeight + (initialY - clampedPos.y);
+                            }
+                            case 1: { // Top-Right corner: anchor is bottom-left (x1, y2)
+                                const curX = Math.max(clampedPos.x, x1 + 1);
+                                const curY = Math.min(clampedPos.y, y2 - 1);
+                                selectedAnnotation.x = x1;
+                                selectedAnnotation.y = curY;
+                                selectedAnnotation.width = curX - x1;
+                                selectedAnnotation.height = y2 - curY;
                                 break;
-                            case 2:
-                                selectedAnnotation.x = clampedPos.x;
-                                selectedAnnotation.width = initialWidth + (initialX - clampedPos.x);
-                                selectedAnnotation.height = clampedPos.y - initialY;
+                            }
+                            case 2: { // Bottom-Left corner: anchor is top-right (x2, y1)
+                                const curX = Math.min(clampedPos.x, x2 - 1);
+                                const curY = Math.max(clampedPos.y, y1 + 1);
+                                selectedAnnotation.x = curX;
+                                selectedAnnotation.y = y1;
+                                selectedAnnotation.width = x2 - curX;
+                                selectedAnnotation.height = curY - y1;
                                 break;
-                            case 3:
-                                selectedAnnotation.width = clampedPos.x - initialX;
-                                selectedAnnotation.height = clampedPos.y - initialY;
+                            }
+                            case 3: { // Bottom-Right corner: anchor is top-left (x1, y1)
+                                const curX = Math.max(clampedPos.x, x1 + 1);
+                                const curY = Math.max(clampedPos.y, y1 + 1);
+                                selectedAnnotation.x = x1;
+                                selectedAnnotation.y = y1;
+                                selectedAnnotation.width = curX - x1;
+                                selectedAnnotation.height = curY - y1;
                                 break;
-                            case 4:
-                                selectedAnnotation.y = Math.max(0, Math.min(clampedPos.y, initialY + initialHeight));
-                                selectedAnnotation.height = Math.abs(selectedAnnotation.y - (initialY + initialHeight));
+                            }
+                            case 4: { // Top edge handle: anchor is bottom edge (y2)
+                                const curY = Math.min(clampedPos.y, y2 - 1);
+                                selectedAnnotation.x = x1;
+                                selectedAnnotation.y = curY;
+                                selectedAnnotation.width = baseBox.width;
+                                selectedAnnotation.height = y2 - curY;
                                 break;
-                            case 5:
-                                selectedAnnotation.height = Math.max(0, clampedPos.y - initialY);
+                            }
+                            case 5: { // Bottom edge handle: anchor is top edge (y1)
+                                const curY = Math.max(clampedPos.y, y1 + 1);
+                                selectedAnnotation.x = x1;
+                                selectedAnnotation.y = y1;
+                                selectedAnnotation.width = baseBox.width;
+                                selectedAnnotation.height = curY - y1;
                                 break;
-                            case 6:
-                                selectedAnnotation.x = Math.max(0, Math.min(clampedPos.x, initialX + initialWidth));
-                                selectedAnnotation.width = Math.abs(selectedAnnotation.x - (initialX + initialWidth));
+                            }
+                            case 6: { // Left edge handle: anchor is right edge (x2)
+                                const curX = Math.min(clampedPos.x, x2 - 1);
+                                selectedAnnotation.x = curX;
+                                selectedAnnotation.y = y1;
+                                selectedAnnotation.width = x2 - curX;
+                                selectedAnnotation.height = baseBox.height;
                                 break;
-                            case 7:
-                                selectedAnnotation.width = Math.max(0, clampedPos.x - initialX);
+                            }
+                            case 7: { // Right edge handle: anchor is left edge (x1)
+                                const curX = Math.max(clampedPos.x, x1 + 1);
+                                selectedAnnotation.x = x1;
+                                selectedAnnotation.y = y1;
+                                selectedAnnotation.width = curX - x1;
+                                selectedAnnotation.height = baseBox.height;
                                 break;
+                            }
                         }
 
-                        if (selectedAnnotation.width < 0) {
-                            selectedAnnotation.x += selectedAnnotation.width;
-                            selectedAnnotation.width = Math.abs(selectedAnnotation.width);
-                        }
-                        if (selectedAnnotation.height < 0) {
-                            selectedAnnotation.y += selectedAnnotation.height;
-                            selectedAnnotation.height = Math.abs(selectedAnnotation.height);
-                        }
+                        clampAnnotationToBounds(selectedAnnotation);
                     }
                 } else {
                     selectedAnnotation.x += dx;
@@ -623,17 +750,9 @@ function handleMouseMove(e) {
             }
             setStartX(pos.x);
             setStartY(pos.y);
-            drawImage();
-        } else if (mode === 'rect' && setupType === "Oriented Bounding Box") {
-            const centerX = toCanvasCoords(selectedAnnotation.x + selectedAnnotation.width / 2, selectedAnnotation.y + selectedAnnotation.height / 2).x;
-            const centerY = toCanvasCoords(selectedAnnotation.x + selectedAnnotation.width / 2, selectedAnnotation.y + selectedAnnotation.height / 2).y;
-            const dx = pos.x - centerX;
-            const dy = pos.y - centerY;
-            selectedAnnotation.rotation = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-            drawImage();
         }
     } else {
-        canvas.style.cursor = 'default';
+        let cursorSet = false;
         if (selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
             const centerX = selectedAnnotation.x + selectedAnnotation.width / 2;
             const centerY = selectedAnnotation.y + selectedAnnotation.height / 2;
@@ -665,24 +784,7 @@ function handleMouseMove(e) {
                 const y = canvasCenter.y + (edge.x * sin + edge.y * cos);
                 return { x, y };
             });
-            for (let j = 0; j < corners.length; j++) {
-                const distance = Math.sqrt(Math.pow(pos.x - corners[j].x, 2) + Math.pow(pos.y - corners[j].y, 2));
-                if (distance < 12) {
-                    canvas.style.cursor = 'all-scroll';
-                    break;
-                }
-            }
-            for (let j = 0; j < edges.length; j++) {
-                const distance = Math.sqrt(Math.pow(pos.x - edges[j].x, 2) + Math.pow(pos.y - edges[j].y, 2));
-                if (distance < 12) {
-                    if (j === 0 || j === 1) {
-                        canvas.style.cursor = 'ns-resize';
-                    } else {
-                        canvas.style.cursor = 'ew-resize';
-                    }
-                    break;
-                }
-            }
+
             if (setupType === "Oriented Bounding Box") {
                 const rotationHandle = { x: 0, y: -halfHeight - 20/viewport.zoom };
                 const cos = Math.cos(rad);
@@ -692,26 +794,87 @@ function handleMouseMove(e) {
                 const distance = Math.sqrt(Math.pow(pos.x - rotX, 2) + Math.pow(pos.y - rotY, 2));
                 if (distance < 12) {
                     canvas.style.cursor = 'grab';
+                    cursorSet = true;
                 }
+            }
+            if (!cursorSet) {
+                for (let j = 0; j < corners.length; j++) {
+                    const distance = Math.sqrt(Math.pow(pos.x - corners[j].x, 2) + Math.pow(pos.y - corners[j].y, 2));
+                    if (distance < 12) {
+                        canvas.style.cursor = (j === 0 || j === 2) ? 'nwse-resize' : 'nesw-resize';
+                        cursorSet = true;
+                        break;
+                    }
+                }
+            }
+            if (!cursorSet) {
+                for (let j = 0; j < edges.length; j++) {
+                    const distance = Math.sqrt(Math.pow(pos.x - edges[j].x, 2) + Math.pow(pos.y - edges[j].y, 2));
+                    if (distance < 12) {
+                        canvas.style.cursor = (j === 0 || j === 1) ? 'ns-resize' : 'ew-resize';
+                        cursorSet = true;
+                        break;
+                    }
+                }
+            }
+        } else if (selectedAnnotation && selectedAnnotation.type === 'polygon') {
+            for (let j = 0; j < selectedAnnotation.points.length; j++) {
+                const p = toCanvasCoords(selectedAnnotation.points[j].x, selectedAnnotation.points[j].y);
+                const distance = Math.sqrt(Math.pow(pos.x - p.x, 2) + Math.pow(pos.y - p.y, 2));
+                if (distance < 12) {
+                    canvas.style.cursor = 'move';
+                    cursorSet = true;
+                    break;
+                }
+            }
+        }
+
+        if (!cursorSet) {
+            if (hovered) {
+                canvas.style.cursor = 'pointer';
+            } else if (mode === 'rect' || mode === 'polygon' || mode === 'magic') {
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'default';
             }
         }
     }
 }
 
 function handleMouseUp(e) {
-    if (mode === 'rect' && isDrawing && currentAnnotation) {
-        if (Math.abs(currentAnnotation.width) > 5 && Math.abs(currentAnnotation.height) > 5) {
-            pushToUndoStack();
-            annotations.push(currentAnnotation);
-            updateTagHighlights();
-        }
-        setCurrentAnnotation(null);
-        setIsDrawing(false);
-        drawImage();
+    if (isPanning) {
+        setIsPanning(false);
+        return;
     }
+    if (mode === 'rect') {
+        if (isDrawing && currentAnnotation) {
+            if (Math.abs(currentAnnotation.width) > 5 && Math.abs(currentAnnotation.height) > 5) {
+                pushToUndoStack();
+                annotations.push(currentAnnotation);
+                setSelectedAnnotation(currentAnnotation);
+                updateTagHighlights();
+            } else {
+                setSelectedAnnotation(null);
+                setSelectedPointIndex(-1);
+                updateTagHighlights();
+            }
+            setCurrentAnnotation(null);
+            setIsDrawing(false);
+            drawImage();
+        } else if (pendingDrawStart) {
+            // Mouse was clicked on empty space and released without dragging: clean click deselect
+            setSelectedAnnotation(null);
+            setSelectedPointIndex(-1);
+            updateTagHighlights();
+            drawImage();
+        }
+    }
+    pendingDrawStart = null;
     setIsDragging(false);
     setIsRightClickEditing(false);
     setIsRotating(false);
+    setIsPanning(false);
+    setInitialBox(null);
 }
 
 function handleWheel(e) {
@@ -734,6 +897,16 @@ export function initAnnotationInteraction() {
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
+    // A release outside the canvas must also end temporary panning.
+    window.addEventListener('mouseup', () => {
+        if (isPanning) setIsPanning(false);
+    });
+    window.addEventListener('blur', () => {
+        if (isPanning) setIsPanning(false);
+    });
     canvas.addEventListener('wheel', handleWheel);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('auxclick', (e) => {
+        if (e.button === 1) e.preventDefault();
+    });
 }

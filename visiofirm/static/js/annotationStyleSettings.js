@@ -1,4 +1,6 @@
 import { drawImage } from './annotationDrawing.js';
+import { isAutoSaveEnabled, setIsAutoSaveEnabled } from './globals.js';
+import { isAdvanceAfterSaveEnabled, setIsAdvanceAfterSaveEnabled } from './globals.js';
 import {
     getCurrentStyleConfig,
     getDefaultStyleConfig,
@@ -42,8 +44,23 @@ export function initAnnotationStyleSettings(config) {
     const selectedStrokeWidth = document.getElementById('style-selected-stroke-width');
     const selectedStrokeColor = document.getElementById('style-selected-stroke-color');
     const preannotationFillOpacity = document.getElementById('style-preannotation-fill-opacity');
+    const autoSaveSwitch = document.getElementById('setting-autosave-switch');
+    const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
+    if (advanceAfterSaveSwitch) {
+        advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;
+        advanceAfterSaveSwitch.addEventListener('change', event => {
+            setIsAdvanceAfterSaveEnabled(event.target.checked);
+        });
+    }
     const tabButtons = Array.from(document.querySelectorAll('.style-tab-btn'));
     const tabPanels = Array.from(document.querySelectorAll('.style-tab-panel'));
+
+    if (autoSaveSwitch) {
+        autoSaveSwitch.checked = isAutoSaveEnabled;
+        autoSaveSwitch.addEventListener('change', e => {
+            setIsAutoSaveEnabled(e.target.checked);
+        });
+    }
 
     function setError(message = '') {
         errorBox.textContent = message;
@@ -228,7 +245,11 @@ export function initAnnotationStyleSettings(config) {
         setError('');
         switchTab('visual');
         updateColorFieldPreview(selectedStrokeColor);
+        if (autoSaveSwitch) {
+            autoSaveSwitch.checked = isAutoSaveEnabled;
+        }
         modal.style.display = 'flex';
+        if (advanceAfterSaveSwitch) advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;
     });
 
     function closeModal() {

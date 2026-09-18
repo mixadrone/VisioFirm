@@ -21,6 +21,8 @@ import sqlite3
 from werkzeug.utils import secure_filename
 from typing import Optional
 import tempfile
+from datetime import datetime, timezone
+from contextlib import closing
 
 router = APIRouter(prefix="/annotation")
 module_dir = os.path.dirname(__file__)
@@ -291,7 +293,7 @@ async def annotation(
             raw_images = project.get_images()  # List of tuples, e.g., [(id, path), ...] or [(id, path, date), ...]
             image_data = []  # List of dicts for template
             
-            with sqlite3.connect(project.db_path) as conn:
+            with closing(sqlite3.connect(project.db_path)) as conn, conn:
                 cursor = conn.cursor()
 
                 cursor.execute('''
@@ -315,61 +317,64 @@ async def annotation(
                     for row in cursor.fetchall()
                 }
             
-            cursor.execute('''
-                SELECT i.absolute_path
-                FROM Images i
-                JOIN Preannotations p ON i.image_id = p.image_id
-                LEFT JOIN Annotations a ON i.image_id = a.image_id
-                LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
-                WHERE a.annotation_id IS NULL AND r.image_id IS NULL
-                GROUP BY i.image_id
-            ''')
-            preannotated_images = {
-                os.path.join('/projects', project_name, 'images', os.path.basename(row[0]))
-                for row in cursor.fetchall()
-            }
+                cursor.execute('''
+                    SELECT i.absolute_path
+                    FROM Images i
+                    JOIN Preannotations p ON i.image_id = p.image_id
+                    LEFT JOIN Annotations a ON i.image_id = a.image_id
+                    LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
+                    WHERE a.annotation_id IS NULL AND r.image_id IS NULL
+                    GROUP BY i.image_id
+                ''')
+                preannotated_images = {
+                    os.path.join('/projects', project_name, 'images', os.path.basename(row[0]))
+                    for row in cursor.fetchall()
+                }
             
-            for img in raw_images:
-                if len(img) < 2:
-                    logger.warning(f"Invalid image tuple in get_images(): {img}")
-                    continue
-                img_id = img[0]
-                abs_path = img[1]
-                filename = os.path.basename(abs_path)
-                url = os.path.join('/projects', project_name, 'images', filename)
+                for img in raw_images:
+                    if len(img) < 2:
+                        logger.warning(f"Invalid image tuple in get_images(): {img}")
+                        continue
+                    img_id = img[0]
+                    abs_path = img[1]
+                    filename = os.path.basename(abs_path)
+                    url = os.path.join('/projects', project_name, 'images', filename)
                 
-                date = img[2] if len(img) > 2 else '2023-01-01'
+                    try:
+                        date = datetime.fromtimestamp(os.path.getmtime(abs_path), timezone.utc).isoformat()
+                    except OSError:
+                        date = ''
                 
-                annotated = url in annotated_images
-                pre_anno = url in preannotated_images
+                    annotated = url in annotated_images
+                    pre_anno = url in preannotated_images
                 
-                image_data.append({
-                    'id': img_id,
-                    'filename': filename,
-                    'url': url,
-                    'date': date, 
-                    'annotated': annotated,
-                    'preannotated': pre_anno
-                })
+                    image_data.append({
+                        'id': img_id,
+                        'filename': filename,
+                        'url': url,
+                        'date': date,
+                        'annotated': annotated,
+                        'preannotated': pre_anno
+                    })
             
-            cursor.execute('''
-                SELECT i.absolute_path, r.user_id
-                FROM Images i
-                LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
-            ''')
-            rows = cursor.fetchall()
-            image_annotators = {}
-            for row in rows:
-                if len(row) < 2:
-                    continue
-                absolute_path = row[0]
-                user_id = row[1]
-                image_url = os.path.join('/projects', project_name, 'images', os.path.basename(absolute_path))
-                if user_id:
-                    user = get_user_by_id(user_id)
-                    image_annotators[image_url] = f"{user[3][0]}.{user[4][0]}" if user else None
-                else:
-                    image_annotators[image_url] = None
+                cursor.execute('''
+                    SELECT i.absolute_path, r.user_id
+                    FROM Images i
+                    LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
+                ''')
+                rows = cursor.fetchall()
+                image_annotators = {}
+                for row in rows:
+                    if len(row) < 2:
+                        continue
+                    absolute_path = row[0]
+                    user_id = row[1]
+                    image_url = os.path.join('/projects', project_name, 'images', os.path.basename(absolute_path))
+                    if user_id:
+                        user = get_user_by_id(user_id)
+                        image_annotators[image_url] = f"{user[3][0]}.{user[4][0]}" if user else None
+                    else:
+                        image_annotators[image_url] = None
         
         tracker.log_substep('Project data loaded', details={'images_count': len(image_data), 'classes_count': len(class_list)})
         tracker.log_step('Annotation interface loaded successfully', details={'project_name': project_name, 'setup_type': setup_type})

@@ -1,9 +1,36 @@
-import { mode, gridEnabled, selectedAnnotation, annotations, undoStack, viewport, currentImageIndex, thumbnailImages, currentImage, setupType, currentAnnotation, currentImageKey, setMode, setGridEnabled, setSelectedAnnotation, setCurrentAnnotation, setAnnotations } from './globals.js';
+import { navigateImage } from './viewManagement.js';
+import { mode, gridEnabled, selectedAnnotation, annotations, undoStack, viewport, currentImage, setupType, currentAnnotation, currentImageKey, setMode, setGridEnabled, setSelectedAnnotation, setSelectedPointIndex, setCurrentAnnotation, setAnnotations, setIsModified, updateTagHighlights } from './globals.js';
 import { drawImage, resetView } from './annotationDrawing.js';
-import { selectImage } from './imageHandling.js';
+import { updateAnnotationSummary } from './imageHandling.js';
 import { pushToUndoStack } from './annotationCore.js';
+import { updateToolModeUI, setIsDrawing, setIsDragging, setIsPanning } from './globals.js';
+
+export function clearAllAnnotations() {
+    if (!currentImageKey || (!annotations.length && !currentAnnotation)) return;
+    pushToUndoStack();
+    setAnnotations([]);
+    setCurrentAnnotation(null);
+    setSelectedAnnotation(null);
+    setSelectedPointIndex(-1);
+    setIsDrawing(false);
+    setIsDragging(false);
+    setIsPanning(false);
+    setIsModified(true);
+    updateTagHighlights();
+    updateAnnotationSummary();
+    drawImage();
+}
 
 export function initToolControls() {
+    let previousMode = setupType === 'Segmentation' ? 'polygon' : 'rect';
+    document.getElementById('pan-mode')?.addEventListener('click', () => {
+        if (mode === 'pan') setMode(previousMode);
+        else {
+            previousMode = mode;
+            setMode('pan');
+        }
+    });
+    document.getElementById('clear-annotations-btn')?.addEventListener('click', clearAllAnnotations);
     const rectBtn = document.getElementById('rect-mode');
     if (rectBtn) {
         rectBtn.addEventListener('click', () => {
@@ -42,7 +69,11 @@ export function initToolControls() {
         undoBtn.addEventListener('click', () => {
             if (undoStack[currentImageKey] && undoStack[currentImageKey].length > 0) { // Now defined
                 setAnnotations(undoStack[currentImageKey].pop()); // Use setter
+                setIsModified(true);
                 setSelectedAnnotation(annotations.length > 0 ? annotations[annotations.length - 1] : null); // Use setter
+                setSelectedPointIndex(-1);
+                updateTagHighlights();
+                updateAnnotationSummary();
                 drawImage();
             }
         });
@@ -55,6 +86,10 @@ export function initToolControls() {
                 pushToUndoStack();
                 setAnnotations(annotations.filter(a => a !== selectedAnnotation)); // Use setter
                 setSelectedAnnotation(null); // Use setter
+                setSelectedPointIndex(-1);
+                setIsModified(true);
+                updateTagHighlights();
+                updateAnnotationSummary();
                 drawImage();
             }
         });
@@ -110,18 +145,14 @@ export function initToolControls() {
     const prevBtn = document.getElementById('prev-image-btn');
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
-            if (currentImageIndex > 0) {
-                selectImage(thumbnailImages[currentImageIndex - 1], currentImageIndex - 1);
-            }
+            navigateImage(-1);
         });
     }
 
     const nextBtn = document.getElementById('next-image-btn');
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
-            if (currentImageIndex < thumbnailImages.length - 1) {
-                selectImage(thumbnailImages[currentImageIndex + 1], currentImageIndex + 1);
-            }
+            navigateImage(1);
         });
     }
 
@@ -147,13 +178,7 @@ export function initToolControls() {
 }
 
 function updateButtonStates() {
-    document.querySelectorAll('.control-btn').forEach(btn => {
-        if (btn.id === `${mode}-mode`) {
-            btn.classList.add('active');
-        } else if (btn.id !== 'grid-btn') {
-            btn.classList.remove('active');
-        }
-    });
+    updateToolModeUI();
 }
 
 function scaleAnnotation(annotation, sourceWidth, sourceHeight, targetWidth, targetHeight) {

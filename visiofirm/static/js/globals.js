@@ -25,6 +25,8 @@ export let classColors = {};
 export let isRotating = false;
 export let initialRotation = 0;
 export let initialCorners = [];
+export let initialBox = null;
+export let isPanning = false;
 export let preannotations = [];
 export let confidenceThreshold = 0.4;
 export let selectedClass = null;
@@ -33,13 +35,37 @@ export let imageProcessed = null;
 export let worker = null;
 export let selectedLabel = null;
 export let hiddenAnnotationLabels = new Set();
+export let isModified = false;
+export let isAutoSaveEnabled = localStorage.getItem('visiofirm_autosave_on_switch') === 'true';
+export let isAdvanceAfterSaveEnabled = localStorage.getItem('visiofirm_advance_after_save') === 'true';
+export function setIsAdvanceAfterSaveEnabled(value) {
+    isAdvanceAfterSaveEnabled = Boolean(value);
+    localStorage.setItem('visiofirm_advance_after_save', String(isAdvanceAfterSaveEnabled));
+}
 
+export function setIsModified(value) { isModified = Boolean(value); }
+export function setIsAutoSaveEnabled(value) {
+    isAutoSaveEnabled = Boolean(value);
+    localStorage.setItem('visiofirm_autosave_on_switch', isAutoSaveEnabled ? 'true' : 'false');
+}
 export function setSelectedLabel(value) { selectedLabel = value; }
 export function setIsMoving(value) { isMoving = value; }
 export function setInitialRotation(value) { initialRotation = value; }
 export function setInitialCorners(value) { initialCorners = value; }
+export function setInitialBox(value) { initialBox = value; }
+export function setIsPanning(value) { isPanning = Boolean(value); updateToolModeUI(); }
 export function setIsDrawing(value) { isDrawing = value; }
-export function setMode(value) { mode = value; }
+export function setMode(value) { mode = value; updateToolModeUI(); }
+export function updateToolModeUI() {
+    const activeMode = isPanning ? 'pan' : mode;
+    document.querySelectorAll('.control-btn[id$="-mode"]').forEach(button => {
+        const active = button.id === `${activeMode}-mode`;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
+    if (canvas) canvas.style.cursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab'
+        : ['rect', 'polygon', 'magic'].includes(mode) ? 'crosshair' : 'default';
+}
 export function setCurrentImageKey(value) { currentImageKey = value; }
 export function setAnnotations(value) { annotations = value; }
 export function setSelectedAnnotation(value) { selectedAnnotation = value; }
@@ -100,10 +126,16 @@ export function initGlobals() {
 }
 
 export function updateTagHighlights() {
-    document.querySelectorAll('.class-tag').forEach(t => t.classList.remove('highlighted'));
+    document.querySelectorAll('.class-tag').forEach(t => {
+        t.classList.remove('highlighted');
+        t.classList.remove('selected');
+    });
     if (selectedAnnotation) {
         const tag = document.querySelector(`.class-tag[data-class="${selectedAnnotation.label}"]`);
         if (tag) tag.classList.add('highlighted');
+    } else if (selectedClass) {
+        const tag = document.querySelector(`.class-tag[data-class="${selectedClass}"]`);
+        if (tag) tag.classList.add('selected');
     }
 }
 

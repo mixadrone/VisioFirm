@@ -248,8 +248,8 @@
         color: black;
         font-size: 0.875rem;
         font-weight: 500;
-        cursor: default;
-        transition: opacity 0.2s ease;
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
         min-width: auto;
         display: inline-flex; /* keep tags inline */
         justify-content: center;
@@ -304,7 +304,9 @@
     }
 
 .class-tag.selected {
-    border: 2px solid black;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb;
+    transform: scale(1.05);
+    font-weight: 700;
 }
 
 
@@ -671,17 +673,29 @@
                 </button>
             </div>
             <div class="grid-controls">
-                <div class="dropdown">
+                <div class="dropdown image-list-dropdown">
+                    <button id="filter-btn" class="layout-btn" title="Filter: All Images">
+                        <i class="fas fa-filter" aria-hidden="true"></i> <span class="image-list-control-label">All Images</span>
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="#" data-filter="all">All Images</a>
+                        <a href="#" data-filter="annotated">Annotated</a>
+                        <a href="#" data-filter="preannotated">Pre-Annotated</a>
+                        <a href="#" data-filter="unannotated">Not Annotated</a>
+                    </div>
+                </div>
+                <div class="dropdown image-list-dropdown">
                     <button id="sort-btn" class="layout-btn" title="Rearrange List">
                         <i class="fas fa-sort"></i> Sort
                     </button>
                     <div class="dropdown-content">
-                        <a href="#" data-sort="name-asc">Name (A-Z)</a>
-                        <a href="#" data-sort="name-desc">Name (Z-A)</a>
+                        <a href="#" data-sort="name-asc">Name (1-9, A-Z)</a>
+                        <a href="#" data-sort="name-desc">Name (Z-A, 9-1)</a>
                         <a href="#" data-sort="date-asc">Date (Oldest First)</a>
                         <a href="#" data-sort="date-desc">Date (Newest First)</a>
-                        <a href="#" data-sort="status-asc">Completion (Annotated First)</a>
-                        <a href="#" data-sort="status-desc">Completion (Unannotated First)</a>
+                        <a href="#" data-sort="status-asc">Status (Annotated First)</a>
+                        <a href="#" data-sort="status-desc">Status (Unannotated First)</a>
+                        <a href="#" data-sort="status-pre">Status (Pre-Annotated First)</a>
                     </div>
                 </div>
                 <button id="grid-toggle-btn" class="layout-btn active" title="Grid View" data-view="grid">
@@ -705,12 +719,13 @@
             </button>
         </div>
         <div class="grid-content">
+            <p class="image-list-empty" role="status" hidden>No images match this filter.</p>
             <div id="grid-thumbnails" class="grid-thumbnails">
                 {% for image in images %}
                     <div class="grid-card" 
                         data-id="{{ image.filename }}" 
                         data-image-id="{{ image.id }}" 
-                        data-date="2023-01-01" 
+                        data-date="{{ image.date }}"
                         data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                         data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
                         <div class="card-checkbox">
@@ -724,7 +739,7 @@
                         </div>
                         <div class="card-info">
                             <span class="image-id">{{ image.id }}</span>
-                            <span class="image-date">{{ '2023-01-01' }}</span>
+                            <span class="image-date">{{ image.date[:10] if image.date else 'Unknown' }}</span>
                             <span class="image-status" 
                                 data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                                 data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
@@ -747,7 +762,7 @@
                     <th>Select</th>
                     <th>ID</th>
                     <th>Preview</th>
-                    <th>Date of Annotation</th>
+                    <th>File Modified Date</th>
                     <th>Completion</th>
                     <th>Annotator</th>
                 </tr>
@@ -756,7 +771,7 @@
                 {% for image in images %}
                     <tr data-id="{{ image.filename }}" 
                         data-image-id="{{ image.id }}" 
-                        data-date="2023-01-01" 
+                        data-date="{{ image.date }}"
                         data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                         data-preannotated="{{ 'true' if image.preannotated else 'false' }}" 
                         data-annotator="{% if image_annotators.get(image.url) %}{{ image_annotators[image.url] }}{% else %}null{% endif %}">
@@ -769,7 +784,7 @@
                                 <img data-src="{{ image.url }}" alt="Thumbnail" class="lazy-load">
                             </div>
                         </td>
-                        <td>{{ '2023-01-01' }}</td>
+                        <td>{{ image.date[:10] if image.date else 'Unknown' }}</td>
                         <td class="image-status" 
                             data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                             data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
@@ -797,23 +812,36 @@
     <div id="annotation-view" class="view-container annotation-container hide">
         <div class="images-list">
             <div class="images-header">
-                <div class="dropdown">
+                <div class="dropdown image-list-dropdown">
+                    <button id="filter-btn-annotation" class="layout-btn" title="Filter: All Images">
+                        <i class="fas fa-filter" aria-hidden="true"></i> <span class="image-list-control-label">All Images</span>
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="#" data-filter="all">All Images</a>
+                        <a href="#" data-filter="annotated">Annotated</a>
+                        <a href="#" data-filter="preannotated">Pre-Annotated</a>
+                        <a href="#" data-filter="unannotated">Not Annotated</a>
+                    </div>
+                </div>
+                <div class="dropdown image-list-dropdown">
                     <button id="sort-btn-annotation" class="layout-btn" title="Rearrange List">
                         <i class="fas fa-sort"></i> Sort
                     </button>
                     <div class="dropdown-content">
-                        <a href="#" data-sort="name-asc">Name (A-Z)</a>
-                        <a href="#" data-sort="name-desc">Name (Z-A)</a>
+                        <a href="#" data-sort="name-asc">Name (1-9, A-Z)</a>
+                        <a href="#" data-sort="name-desc">Name (Z-A, 9-1)</a>
                         <a href="#" data-sort="date-asc">Date (Oldest First)</a>
                         <a href="#" data-sort="date-desc">Date (Newest First)</a>
-                        <a href="#" data-sort="status-asc">Completion (Annotated First)</a>
-                        <a href="#" data-sort="status-desc">Completion (Unannotated First)</a>
+                        <a href="#" data-sort="status-asc">Status (Annotated First)</a>
+                        <a href="#" data-sort="status-desc">Status (Unannotated First)</a>
+                        <a href="#" data-sort="status-pre">Status (Pre-Annotated First)</a>
                     </div>
                 </div>
                 <button id="viewport-btn-annotation" class="layout-btn" title="Switch to Grid View">
                     <i class="fas fa-th-large"></i> Grid View
                 </button>
             </div>
+            <p class="image-list-empty" role="status" hidden>No images match this filter.</p>
             <div class="thumbnails">
                 <table class="thumbnail-table">
                     <tbody>
@@ -822,7 +850,7 @@
                                 data-index="{{ loop.index0 }}" 
                                 data-id="{{ image.filename }}" 
                                 data-image-id="{{ image.id }}" 
-                                data-date="2023-01-01" 
+                                data-date="{{ image.date }}"
                                 data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                                 data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
                                 <td class="thumbnail-id">{{ image.id }}</td>
@@ -836,6 +864,7 @@
             </div>
         </div>
         <div class="labeling-area">
+            <p id="image-filter-notice" role="status" hidden>Current image is outside the filter. Use Prev/Next to open a matching image.</p>
             <div class="image-workspace">
                 <div class="image-container">
                     <div class="image-info">
@@ -857,16 +886,18 @@
                         <button class="control-btn" id="rect-mode" title="Draw Rectangle"><img src="/static/img/logos/rect-mode.svg" alt="Draw Rectangle"></button>
                         <button class="control-btn" id="polygon-mode" title="Draw Polygon"><img src="/static/img/logos/polygon-mode.svg" alt="Draw Polygon"></button>
                         <button class="control-btn" id="magic-mode" title="One Click Annotation"><img src="/static/img/logos/magic-mode.svg" alt="One Click Annotation"></button>
-                        <button class="control-btn" id="select-mode" title="Select Labels"><img src="/static/img/logos/select-mode.svg" alt="Select Labels"></button>
+                        <button class="control-btn" id="select-mode" title="Select Labels (V)" aria-label="Select Labels"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M5 3v17l5-5 4 7 3-2-4-7h7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                        <button class="control-btn" id="pan-mode" title="Pan Image (toggle; or hold middle mouse button)" aria-label="Pan Image" aria-pressed="false"><img src="/static/img/logos/select-mode.svg" alt=""></button>
                         <button class="control-btn" id="undo-btn" title="Undo Last Action"><img src="/static/img/logos/undo-btn.svg" alt="Undo Last Action"></button>
                         <button class="control-btn" id="delete-btn" title="Delete Selected Annotation"><img src="/static/img/logos/delete-btn.svg" alt="Delete Selected Annotation"></button>
+                        <button class="control-btn" id="clear-annotations-btn" title="Clear All Annotations on This Image (Undo available)" aria-label="Clear All Annotations"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M3 4h12M7 2h4M5 4l1 15h8l1-15M8 7v9m4-9v9M17 8h5m-4 0-1 13h4l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                         <button class="control-btn" id="duplicate-btn" title="Duplicate Selected Annotation"><img src="/static/img/logos/duplicate-btn.svg" alt="Duplicate Selected Annotation"></button>
                         <button class="control-btn" id="grid-btn" title="Toggle Grid"><img src="/static/img/logos/grid-btn.svg" alt="Toggle Grid"></button>
                         {% endif %}
                         <button class="control-btn" id="reset-view" title="Reset View"><img src="/static/img/logos/reset-view.svg" alt="Reset View"></button>
                         <button class="control-btn" id="zoom-in-btn" title="Zoom In"><img src="/static/img/logos/zoom-in-btn.svg" alt="Zoom In"></button>
                         <button class="control-btn" id="zoom-out-btn" title="Zoom Out"><img src="/static/img/logos/zoom-out-btn.svg" alt="Zoom Out"></button>
-                        <button class="control-btn" id="save-btn" title="Save Annotations"><img src="/static/img/logos/save-btn.svg" alt="Save Annotations"></button>
+                        <button class="control-btn" id="save-btn" title="Approve / Save (S or Enter)"><img src="/static/img/logos/save-btn.svg" alt="Save Annotations"></button>
                         <button class="control-btn" id="prev-image-btn" title="Previous Image"><img src="/static/img/logos/prev-image-btn.svg" alt="Previous Image"></button>
                         <button class="control-btn" id="next-image-btn" title="Next Image"><img src="/static/img/logos/next-image-btn.svg" alt="Next Image"></button>
                         <button class="control-btn" id="delete-image-btn" title="Delete Current Image"><img src="/static/img/logos/delete-btn.svg" alt="Delete Image"></button>
@@ -889,7 +920,7 @@
                 <div class="class-selector">
                     <div id="class-tags-container"></div>
                 </div>
-                <button class="approve-btn" id="approve-btn">Approve</button>
+                <button class="approve-btn" id="approve-btn" title="Approve / Save (S or Enter)">Approve</button>
             </div>
         </div>
     </div>
@@ -905,6 +936,7 @@
             <p class="save-message">Annotations saved successfully!</p>
         </div>
     </div>
+    <div id="autosave-toast" class="autosave-toast"></div>
     <div class="modal" id="import-images-modal">
         <div class="modal-content">
             <button class="close-btn import-close-btn">×</button>
@@ -1304,9 +1336,10 @@
     <div class="modal" id="annotation-style-modal">
         <div class="modal-content annotation-style-modal-content">
             <button id="annotation-style-close-btn" class="close-btn">×</button>
-            <h2>Annotation Style Settings</h2>
+            <h2>Settings</h2>
             <div class="style-tab-header">
                 <button class="style-tab-btn active" data-style-tab="visual">Visual</button>
+                <button class="style-tab-btn" data-style-tab="workflow">General / Workflow</button>
                 <button class="style-tab-btn" data-style-tab="json">JSON</button>
             </div>
             <div id="annotation-style-error" class="style-config-error" style="display: none;"></div>
@@ -1358,6 +1391,28 @@
                             </thead>
                             <tbody id="annotation-style-class-rows"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+            <div class="style-tab-panel" data-style-panel="workflow">
+                <div class="workflow-settings-box">
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-advance-after-save">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Go to next image after Approve / Save</span>
+                        </label>
+                        <p class="workflow-setting-desc">Press S or Enter, or click Approve / Save, to save and move to the next image in the current sort and filter order. Only advances after a successful save. Auto-save on image switch does not trigger another advance.</p>
+                    </div>
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-autosave-switch">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Auto-save annotations on image switch</span>
+                        </label>
+                        <p class="workflow-setting-desc">
+                            Automatically saves any modified annotations when switching between images (via keyboard navigation or thumbnail clicks). If an image has AI pre-annotations but was not edited, it remains untouched without accidental approval.
+                        </p>
                     </div>
                 </div>
             </div>
