@@ -22,11 +22,14 @@
                     {% endif %}                </div>
                 <div class="project-info">
                     <span class="project-name">{{ project.name }}</span>
-                    <button class="menu-btn">⋮</button>
+                    <button type="button" class="menu-btn" aria-expanded="false" aria-label="Menu for {{ project.name }}">Menu</button>
                     <div class="menu-dropdown" style="display: none;">
                         <button class="overview-btn" data-project="{{ project.name }}">Overview</button>
                         <button class="import-btn" data-project="{{ project.name }}">Add Images</button>
                         <button class="add-classes-btn" data-project="{{ project.name }}">Add Classes</button>
+                        {% if project.setup_type and 'Video' not in project.setup_type %}
+                        <button class="duplicates-btn" data-project="{{ project.name }}">Clean duplicates</button>
+                        {% endif %}
                         <button class="delete-btn" data-project="{{ project.name }}">Delete</button>
                     </div>
                 </div>
@@ -37,7 +40,7 @@
 
 <div class="modal">
     <div class="modal-content">
-        <button class="close-btn">×</button>
+        <button class="close-btn">Г—</button>
         <h2>Create New Project</h2>
         <form id="project-form" enctype="multipart/form-data">
             <div class="tab-headers">
@@ -135,7 +138,7 @@
 
 <div class="modal" id="import-modal">
     <div class="modal-content">
-        <button class="close-btn import-close-btn">×</button>
+        <button class="close-btn import-close-btn">Г—</button>
         <h2 class="modal-title">Import More Images</h2>
         <form id="import-form" enctype="multipart/form-data">
             <div class="form-group">
@@ -167,8 +170,8 @@
 <div class="modal" id="delete-confirm-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>⚠️ Confirm Deletion</h2>
-            <button class="close-btn" id="cancel-delete">×</button>
+            <h2>вљ пёЏ Confirm Deletion</h2>
+            <button class="close-btn" id="cancel-delete">Г—</button>
         </div>
         <div class="modal-body">
             <p id="delete-message"></p>
@@ -182,7 +185,7 @@
 
 <div class="modal" id="overview-modal">
     <div class="modal-content">
-        <button class="close-btn overview-close-btn">×</button>
+        <button class="close-btn overview-close-btn">Г—</button>
         <h2 class="modal-title">Project Overview: <span id="overview-project-name"></span></h2>
         <div id="total-images">Total Images: <span id="total-images-count"></span></div>
         <div id="overview-charts">
@@ -195,7 +198,7 @@
 
 <div class="modal" id="add-classes-modal">
     <div class="modal-content">
-        <button class="close-btn add-classes-close-btn">×</button>
+        <button class="close-btn add-classes-close-btn">Г—</button>
         <h2 class="modal-title">Add Classes to <span id="add-classes-project-name" class="project-name-highlight"></span></h2>
         <form id="add-classes-form">
             <div class="form-group">
@@ -1022,6 +1025,7 @@
                 e.stopPropagation();
                 const dropdown = btn.nextElementSibling;
                 dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                btn.setAttribute('aria-expanded', String(dropdown.style.display === 'block'));
             });
         });
 
@@ -1134,6 +1138,7 @@
             document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
                 if (!dropdown.contains(e.target) && !e.target.classList.contains('menu-btn')) {
                     dropdown.style.display = 'none';
+                    dropdown.previousElementSibling.setAttribute('aria-expanded', 'false');
                 }
             });
         });
@@ -1157,4 +1162,17 @@
         });
     });
 </script>
+<dialog id="duplicates-dialog" aria-labelledby="duplicates-title" style="width:min(960px,90vw);max-height:85vh;overflow:auto;border:1px solid #888;border-radius:12px;padding:24px;">
+    <h2 id="duplicates-title">Clean duplicates</h2>
+    <p>Group images by source filename, ignoring the final _xNUMBER_yNUMBER tile coordinates and file extension. Different tiles from one source are grouped together even when their contents differ. Keep one selected file per included group; skip groups you want to retain.</p>
+    <p id="duplicates-status" role="status"></p>
+    <div id="duplicates-groups"></div>
+    <p id="duplicates-summary"></p>
+    <label id="duplicates-loss-label" hidden><input type="checkbox" id="duplicates-loss"> I confirm deletion of manual annotations or reviewed status on the selected copies.</label>
+    <div style="display:flex;gap:12px;margin-top:20px;">
+        <button type="button" id="duplicates-clean" disabled>Remove selected duplicates</button>
+        <button type="button" id="duplicates-close">Close</button>
+    </div>
+</dialog>
+<script src="{{ url_for('static', path='js/duplicateCleanup.js') }}"></script>
 {% endblock %}

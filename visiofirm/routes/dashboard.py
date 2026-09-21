@@ -8,6 +8,7 @@ from visiofirm.config import PROJECTS_FOLDER, VALID_IMAGE_EXTENSIONS, VALID_VIDE
 from werkzeug.utils import secure_filename
 import os
 import logging
+from pydantic import BaseModel, StrictBool, StrictInt
 from typing import Optional
 from pathlib import Path
 
@@ -206,3 +207,49 @@ async def get_project_classes(request: Request, project_name: str, current_user:
     except Exception as e:
         logger.exception("Error fetching classes for %s", project_name)
         raise HTTPException(status_code=500, detail=f'Server error: {str(e)}')
+
+# Synchronous routes run pixel decoding and SQLite work in FastAPI's thread pool.
+def _duplicate_project_path(project_name):
+    root = Path(PROJECTS_FOLDER).resolve()
+    safe_name = secure_filename(project_name)
+    path = (root / safe_name).resolve()
+    if not safe_name or path == root or not path.is_relative_to(root) or not (path / "config.db").is_file():
+        raise HTTPException(status_code=404, detail="Project not found")
+    import sqlite3
+    from contextlib import closing
+    with closing(sqlite3.connect(path / "config.db")) as conn:
+        row = conn.execute("SELECT setup_type FROM Project_Configuration LIMIT 1").fetchone()
+    if not row or "Video" in row[0]:
+        raise HTTPException(status_code=400, detail="Duplicate cleanup supports image projects only")
+    return path
+
+
+class DuplicateMember(BaseModel):
+    image_id: StrictInt
+    state: str
+
+
+class DuplicateSelection(BaseModel):
+    members: list[DuplicateMember]
+    token: str
+    keep_id: StrictInt
+    remove_ids: list[StrictInt]
+
+
+class DuplicateCleanupRequest(BaseModel):
+    groups: list[DuplicateSelection]
+    confirm_loss: StrictBool = False
+
+
+@router.post("/scan_duplicates/{project_name}")
+def scan_project_duplicates(project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    from visiofirm.duplicates import scan_duplicates
+    return scan_duplicates(_duplicate_project_path(project_name))
+
+
+@router.post("/clean_duplicates/{project_name}")
+def clean_project_duplicates(project_name: str, data: DuplicateCleanupRequest,
+                             current_user: User = Depends(get_current_user_from_cookie)):
+    from visiofirm.duplicates import clean_duplicates
+    return clean_duplicates(_duplicate_project_path(project_name),
+                            [group.dict() for group in data.groups], data.confirm_loss)
