@@ -37,6 +37,11 @@ export let selectedLabel = null;
 export let hiddenAnnotationLabels = new Set();
 export let isModified = false;
 export let isAutoSaveEnabled = localStorage.getItem('visiofirm_autosave_on_switch') === 'true';
+export let isFitToLabelsEnabled = localStorage.getItem('visiofirm_fit_to_labels') === 'true';
+export function setIsFitToLabelsEnabled(value) {
+    isFitToLabelsEnabled = Boolean(value);
+    localStorage.setItem('visiofirm_fit_to_labels', String(isFitToLabelsEnabled));
+}
 export let isAdvanceAfterSaveEnabled = localStorage.getItem('visiofirm_advance_after_save') === 'true';
 export function setIsAdvanceAfterSaveEnabled(value) {
     isAdvanceAfterSaveEnabled = Boolean(value);

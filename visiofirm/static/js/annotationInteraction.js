@@ -40,6 +40,14 @@ import { toImageCoords, toCanvasCoords, clampToImageBounds, pushToUndoStack, cla
 import { segmentArea } from './sam.js';
 
 let pendingDrawStart = null;
+let dragUndoRecorded = false;
+
+function beginAnnotationDrag(annotation) {
+    dragUndoRecorded = false;
+    setInitialBox(annotation.type === 'rect' || annotation.type === 'obbox'
+        ? { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height }
+        : null);
+}
 
 export function getMousePos(canvas, e) {
     const rect = canvas.getBoundingClientRect();
@@ -56,8 +64,8 @@ export function isPointInAnnotation(point, annotation) {
         const rad = (annotation.rotation || 0) * Math.PI / 180;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
-        const localX = dx * cos - dy * sin;
-        const localY = dx * sin + dy * cos;
+        const localX = dx * cos + dy * sin;
+        const localY = -dx * sin + dy * cos;
         const halfW = annotation.width / 2;
         const halfH = annotation.height / 2;
         return localX >= -halfW && localX <= halfW && localY >= -halfH && localY <= halfH;
@@ -250,7 +258,7 @@ function handleMouseDown(e) {
             setIsRightClickEditing(true);
             setStartX(pos.x);
             setStartY(pos.y);
-            pushToUndoStack();
+            beginAnnotationDrag(clickedAnnotation);
             if (clickedAnnotation.type === 'rect' || clickedAnnotation.type === 'obbox') {
                 setInitialBox({
                     x: clickedAnnotation.x,
@@ -313,6 +321,21 @@ function handleMouseDown(e) {
     }
 
     if (mode === 'rect' && e.button === 0) {
+        const clickedAnnotation = findSelectedAnnotation(pos);
+        if (clickedAnnotation) {
+            pendingDrawStart = null;
+            setCurrentAnnotation(null);
+            setIsDrawing(false);
+            setIsDragging(true);
+            setStartX(pos.x);
+            setStartY(pos.y);
+            beginAnnotationDrag(clickedAnnotation);
+            drawImage();
+            return;
+        }
+        setSelectedAnnotation(null);
+        setSelectedPointIndex(-1);
+        updateTagHighlights();
         const clampedPos = clampToImageBounds(imgPos);
         if (e.altKey && setupType === "Oriented Bounding Box") {
             if (selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
@@ -340,7 +363,7 @@ function handleMouseDown(e) {
             setIsDrawing(false);
             drawImage();
         } else {
-            // LMB always draws a new bounding box (even when clicking inside an existing object)
+            // LMB on empty space starts a new bounding box
             // Box creation is deferred until dragging exceeds movement threshold
             pendingDrawStart = {
                 startX: pos.x,
@@ -363,7 +386,7 @@ function handleMouseDown(e) {
                 setIsDragging(true);
                 setStartX(pos.x);
                 setStartY(pos.y);
-                pushToUndoStack();
+                beginAnnotationDrag(clickedAnnotation);
                 drawImage();
                 return;
             }
@@ -403,7 +426,7 @@ function handleMouseDown(e) {
             setIsDragging(true);
             setStartX(pos.x);
             setStartY(pos.y);
-            pushToUndoStack();
+            beginAnnotationDrag(clickedAnnotation);
             if ((clickedAnnotation.type === 'rect' || clickedAnnotation.type === 'obbox') && selectedPointIndex >= 0) {
                 const theta = (clickedAnnotation.rotation || 0) * Math.PI / 180;
                 const cosTheta = Math.cos(theta);
@@ -434,6 +457,23 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
+    const target = selectedAnnotation;
+    const before = target && (isDragging || isRotating) ? JSON.parse(JSON.stringify(target)) : null;
+    processMouseMove(e);
+    if (before && JSON.stringify(before) !== JSON.stringify(target)) {
+        if (!dragUndoRecorded) {
+            // Record the geometry before the first actual change, not on selection.
+            const after = { ...target };
+            Object.assign(target, before);
+            pushToUndoStack();
+            Object.assign(target, after);
+            dragUndoRecorded = true;
+        }
+        drawImage();
+    }
+}
+
+function processMouseMove(e) {
     const pos = getMousePos(canvas, e);
     const imgPos = toImageCoords(pos.x, pos.y);
 
@@ -463,7 +503,7 @@ function handleMouseMove(e) {
         drawImage();
         return;
     }
-    else if (mode === 'rect') {
+    else if (mode === 'rect' && (isDrawing || pendingDrawStart)) {
         if (!isDrawing && pendingDrawStart) {
             const dragDist = Math.hypot(pos.x - pendingDrawStart.startX, pos.y - pendingDrawStart.startY);
             if (dragDist > 4) {
@@ -801,7 +841,7 @@ function handleMouseMove(e) {
                 for (let j = 0; j < corners.length; j++) {
                     const distance = Math.sqrt(Math.pow(pos.x - corners[j].x, 2) + Math.pow(pos.y - corners[j].y, 2));
                     if (distance < 12) {
-                        canvas.style.cursor = (j === 0 || j === 2) ? 'nwse-resize' : 'nesw-resize';
+                        canvas.style.cursor = (j === 0 || j === 3) ? 'nwse-resize' : 'nesw-resize';
                         cursorSet = true;
                         break;
                     }
@@ -844,7 +884,6 @@ function handleMouseMove(e) {
 function handleMouseUp(e) {
     if (isPanning) {
         setIsPanning(false);
-        return;
     }
     if (mode === 'rect') {
         if (isDrawing && currentAnnotation) {
@@ -870,6 +909,7 @@ function handleMouseUp(e) {
         }
     }
     pendingDrawStart = null;
+    dragUndoRecorded = false;
     setIsDragging(false);
     setIsRightClickEditing(false);
     setIsRotating(false);
@@ -897,13 +937,9 @@ export function initAnnotationInteraction() {
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
-    // A release outside the canvas must also end temporary panning.
-    window.addEventListener('mouseup', () => {
-        if (isPanning) setIsPanning(false);
-    });
-    window.addEventListener('blur', () => {
-        if (isPanning) setIsPanning(false);
-    });
+    // Finish editing even when the button is released outside the canvas.
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
     canvas.addEventListener('wheel', handleWheel);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('auxclick', (e) => {

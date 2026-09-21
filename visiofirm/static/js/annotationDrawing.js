@@ -15,7 +15,7 @@ import {
     isDrawing,
     isAnnotationLabelHidden
 } from './globals.js';
-import { toCanvasCoords } from './annotationCore.js';
+import { toCanvasCoords, getRotatedCorners } from './annotationCore.js';
 import { getResolvedAnnotationStyle } from './annotationStyles.js';
 
 let hoveredAnnotation = null;
@@ -386,7 +386,46 @@ function drawSelectionHandles(anno) {
     }
 }
 
+export function fitToLabels() {
+    if (!currentImage || !canvas) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const anno of setupType === 'Classification' ? [] : annotations) {
+        if (isAnnotationLabelHidden(anno.label) ||
+            (anno.isPreannotation && !(anno.confidence >= confidenceThreshold))) continue;
+
+        let points;
+        if (anno.type === 'rect' || anno.type === 'obbox') {
+            if (![anno.x, anno.y, anno.width, anno.height, anno.rotation ?? 0].every(Number.isFinite) ||
+                anno.width <= 0 || anno.height <= 0) continue;
+            points = getRotatedCorners(anno);
+        } else if (anno.type === 'polygon') {
+            points = anno.points;
+            if (!Array.isArray(points) || points.length < 3) continue;
+        } else {
+            continue;
+        }
+        if (!points.every(point => point && Number.isFinite(point.x) && Number.isFinite(point.y))) continue;
+        for (const point of points) {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        }
+    }
+    if (!(maxX > minX && maxY > minY)) {
+        resetView();
+        return;
+    }
+    // Leave 10% of the canvas free and let drawImage enforce image pan bounds.
+    viewport.zoom = Math.min(viewport.maxZoom, Math.max(viewport.minZoom,
+        Math.min(canvas.width / (maxX - minX), canvas.height / (maxY - minY)) * 0.9));
+    viewport.x = canvas.width / 2 - (minX + (maxX - minX) / 2) * viewport.zoom;
+    viewport.y = canvas.height / 2 - (minY + (maxY - minY) / 2) * viewport.zoom;
+    drawImage();
+}
+
 export function resetView() {
+    if (!currentImage || !canvas) return;
     viewport.zoom = viewport.fitZoom || viewport.minZoom;
     viewport.x = (canvas.width - currentImage.width * viewport.zoom) / 2;
     viewport.y = (canvas.height - currentImage.height * viewport.zoom) / 2;

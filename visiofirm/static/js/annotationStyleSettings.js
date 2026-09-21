@@ -1,4 +1,5 @@
-import { drawImage } from './annotationDrawing.js';
+import { drawImage, fitToLabels, resetView } from './annotationDrawing.js';
+import { isFitToLabelsEnabled, setIsFitToLabelsEnabled } from './globals.js';
 import { isAutoSaveEnabled, setIsAutoSaveEnabled } from './globals.js';
 import { isAdvanceAfterSaveEnabled, setIsAdvanceAfterSaveEnabled } from './globals.js';
 import {
@@ -45,6 +46,15 @@ export function initAnnotationStyleSettings(config) {
     const selectedStrokeColor = document.getElementById('style-selected-stroke-color');
     const preannotationFillOpacity = document.getElementById('style-preannotation-fill-opacity');
     const autoSaveSwitch = document.getElementById('setting-autosave-switch');
+    const fitToLabelsSwitch = document.getElementById('setting-fit-to-labels');
+    if (fitToLabelsSwitch) {
+        fitToLabelsSwitch.checked = isFitToLabelsEnabled;
+        fitToLabelsSwitch.addEventListener('change', event => {
+            setIsFitToLabelsEnabled(event.target.checked);
+            if (isFitToLabelsEnabled) fitToLabels();
+            else resetView();
+        });
+    }
     const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
     if (advanceAfterSaveSwitch) {
         advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;

@@ -22,9 +22,10 @@ import {
     isAnnotationLabelHidden,
     isModified,
     setIsModified,
-    isAutoSaveEnabled
+    isAutoSaveEnabled,
+    isFitToLabelsEnabled
 } from './globals.js';
-import { drawImage, resetView } from './annotationDrawing.js';
+import { drawImage, resetView, fitToLabels } from './annotationDrawing.js';
 import { updateAnnotationStatus, updateClassTags } from './main.js';
 import { executeSave } from './saveHandling.js';
 
@@ -281,7 +282,8 @@ export function resizeCanvas() {
     viewport.fitZoom = fitZoom;
     viewport.minZoom = fitZoom * 0.5;
     viewport.zoom = Math.max(viewport.minZoom, viewport.zoom);
-    resetView();
+    if (isFitToLabelsEnabled) fitToLabels();
+    else resetView();
 }
 
 // Single-image delete handler: deletes currently selected image from project using modal confirmation
