@@ -1069,8 +1069,12 @@
 /* Auto-save notification toast */
 .autosave-toast {
     position: fixed;
-    bottom: 28px;
+    /* Keep notifications above the 100px annotation control panel. */
+    bottom: 112px;
     right: 28px;
+    box-sizing: border-box;
+    max-width: calc(100vw - 56px);
+    overflow-wrap: anywhere;
     background: rgba(17, 24, 39, 0.92);
     color: #fff;
     padding: 10px 18px;
@@ -1091,7 +1095,6 @@
 .autosave-toast.show {
     opacity: 1;
     transform: translateY(0);
-    pointer-events: auto;
 }
 
 .autosave-toast.error {

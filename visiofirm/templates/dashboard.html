@@ -1166,7 +1166,9 @@
     <h2 id="duplicates-title">Clean duplicates</h2>
     <p>Group images by source filename, ignoring the final _xNUMBER_yNUMBER tile coordinates and file extension. Different tiles from one source are grouped together even when their contents differ. Keep one selected file per included group; skip groups you want to retain.</p>
     <p id="duplicates-status" role="status"></p>
+    <label id="duplicates-select-all-label" hidden><input type="checkbox" id="duplicates-select-all"> Select all groups</label>
     <div id="duplicates-groups"></div>
+    <div id="duplicates-result" role="status" aria-live="polite" aria-atomic="true" hidden></div>
     <p id="duplicates-summary"></p>
     <label id="duplicates-loss-label" hidden><input type="checkbox" id="duplicates-loss"> I confirm deletion of manual annotations or reviewed status on the selected copies.</label>
     <div style="display:flex;gap:12px;margin-top:20px;">

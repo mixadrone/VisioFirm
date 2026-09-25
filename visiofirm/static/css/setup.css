@@ -1753,3 +1753,29 @@ input:checked + .slider:before {
 .load-btn:hover {
     background: #45a049;
 }
+
+/* Keep cleanup feedback next to the action buttons, even in long group lists. */
+#duplicates-result {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e40af;
+    font-weight: 600;
+}
+#duplicates-result[data-kind="success"] {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #065f46;
+}
+#duplicates-result[data-kind="warning"] {
+    background: #fffbeb;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+#duplicates-result[data-kind="error"] {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
