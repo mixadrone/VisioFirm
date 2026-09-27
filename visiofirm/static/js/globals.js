@@ -15,6 +15,9 @@ export let isDragging = false;
 export let startX = 0;
 export let startY = 0;
 export let selectedAnnotation = null;
+export let selectedAnnotations = [];
+export let isSelectingMarquee = false;
+export let marqueeRect = null;
 export let selectedPointIndex = -1;
 export let undoStack = {};
 export let isRightClickEditing = false;
@@ -73,7 +76,48 @@ export function updateToolModeUI() {
 }
 export function setCurrentImageKey(value) { currentImageKey = value; }
 export function setAnnotations(value) { annotations = value; }
-export function setSelectedAnnotation(value) { selectedAnnotation = value; }
+export function setSelectedAnnotation(value) {
+    selectedAnnotation = value;
+    selectedAnnotations = value ? [value] : [];
+}
+export function setSelectedAnnotations(items) {
+    selectedAnnotations = Array.isArray(items) ? [...items] : [];
+    selectedAnnotation = selectedAnnotations.length > 0 ? selectedAnnotations[selectedAnnotations.length - 1] : null;
+}
+export function addSelectedAnnotation(item) {
+    if (item && !selectedAnnotations.includes(item)) {
+        selectedAnnotations.push(item);
+        selectedAnnotation = item;
+    }
+}
+export function removeSelectedAnnotation(item) {
+    const idx = selectedAnnotations.indexOf(item);
+    if (idx !== -1) {
+        selectedAnnotations.splice(idx, 1);
+        selectedAnnotation = selectedAnnotations.length > 0 ? selectedAnnotations[selectedAnnotations.length - 1] : null;
+    }
+}
+export function toggleSelectedAnnotation(item) {
+    if (!item) return;
+    if (selectedAnnotations.includes(item)) {
+        removeSelectedAnnotation(item);
+    } else {
+        addSelectedAnnotation(item);
+    }
+}
+export function clearSelectedAnnotations() {
+    selectedAnnotations = [];
+    selectedAnnotation = null;
+}
+export function isAnnotationSelected(item) {
+    return item ? selectedAnnotations.includes(item) : false;
+}
+export function setIsSelectingMarquee(value) {
+    isSelectingMarquee = Boolean(value);
+}
+export function setMarqueeRect(value) {
+    marqueeRect = value;
+}
 export function setCurrentImage(value) { currentImage = value; }
 export function setCurrentImageIndex(value) { currentImageIndex = value; }
 export function setGridEnabled(value) { gridEnabled = value; }
@@ -135,9 +179,13 @@ export function updateTagHighlights() {
         t.classList.remove('highlighted');
         t.classList.remove('selected');
     });
-    if (selectedAnnotation) {
-        const tag = document.querySelector(`.class-tag[data-class="${selectedAnnotation.label}"]`);
-        if (tag) tag.classList.add('highlighted');
+    if (selectedAnnotations && selectedAnnotations.length > 0) {
+        selectedAnnotations.forEach(ann => {
+            if (ann && ann.label) {
+                const tag = document.querySelector(`.class-tag[data-class="${ann.label}"]`);
+                if (tag) tag.classList.add('highlighted');
+            }
+        });
     } else if (selectedClass) {
         const tag = document.querySelector(`.class-tag[data-class="${selectedClass}"]`);
         if (tag) tag.classList.add('selected');

@@ -218,3 +218,6 @@ visiofirm/one_click_annotation.md
 
 _my_tools/
 _YOLO/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+output/

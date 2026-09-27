@@ -5,6 +5,7 @@ import {
     classColors,
     setSelectedClass,
     selectedAnnotation,
+    selectedAnnotations,
     updateTagHighlights,
     setupType,
     setAnnotationCache,
@@ -16,11 +17,11 @@ import {
     isAnnotationLabelHidden,
     setSelectedAnnotation
 } from './globals.js';
-import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, filterImages, refreshImageList, toggleView } from './viewManagement.js';
+import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, filterImages, filterByClass, refreshImageList, toggleView, setCustomFilterRange } from './viewManagement.js';
 import { initToolControls } from './toolControls.js';
 import { initAnnotationInteraction } from './annotationInteraction.js';
 import { initKeyboardShortcuts } from './keyboardShortcuts.js';
-import { initShortcutsSidebar, updateShortcutsNotice } from './shortcutsHelp.js';
+import { initShortcutsSidebar, updateShortcutsNotice } from './shortcutsHelp.js?v=20260928-v8';
 import { initSaveHandling } from './saveHandling.js';
 import { selectImage, resizeCanvas, updateAnnotationSummary } from './imageHandling.js';
 import { drawImage } from './annotationDrawing.js';
@@ -42,7 +43,25 @@ function hideLoadingAnimation() {
 
 // In main.js
 export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
-    if (isPreannotated) isAnnotated = false;
+    const confirmedAnnos = annotations.filter(a => !a.isPreannotation);
+    const annoCount = isAnnotated ? confirmedAnnos.length : 0;
+    const classCount = isAnnotated ? new Set(confirmedAnnos.map(a => a.label).filter(Boolean)).size : 0;
+
+    const updateBadge = (container, count) => {
+        if (!container) return;
+        let badge = container.querySelector('.thumbnail-count-badge');
+        if (!badge && count > 0) {
+            badge = document.createElement('span');
+            badge.className = 'thumbnail-count-badge';
+            container.appendChild(badge);
+        }
+        if (badge) {
+            badge.textContent = count;
+            badge.title = `${count} annotations`;
+            badge.style.display = count > 0 ? '' : 'none';
+        }
+    };
+
     const filename = decodeURIComponent(imagePath.replaceAll('\\', '/').split('/').pop());
     const findRow = selector => Array.from(document.querySelectorAll(selector)).find(row => row.dataset.id === filename);
     const gridCard = findRow('#grid-thumbnails .grid-card');
@@ -51,6 +70,9 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
         const checkSpan = gridCard.querySelector('.annotated-check');
         gridCard.dataset.annotated = isAnnotated;
         gridCard.dataset.preannotated = isPreannotated ? 'true' : 'false';
+        gridCard.dataset.annotationCount = annoCount;
+        gridCard.dataset.classCount = classCount;
+        updateBadge(gridCard.querySelector('.card-image-container'), annoCount);
         if (statusSpan) {
             statusSpan.textContent = isAnnotated ? 'Annotated' : (isPreannotated ? 'Pre-Annotated' : 'Not Annotated');
             statusSpan.dataset.annotated = isAnnotated ? 'true' : 'false';
@@ -71,6 +93,8 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
     if (listRow) {
         listRow.dataset.annotated = isAnnotated;
         listRow.dataset.preannotated = isPreannotated ? 'true' : 'false';
+        listRow.dataset.annotationCount = annoCount;
+        listRow.dataset.classCount = classCount;
         const statusCell = listRow.cells[4];
         const annotatorCell = listRow.cells[5];
         if (statusCell) {
@@ -92,6 +116,9 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
     if (thumbnailRow) {
         thumbnailRow.dataset.annotated = isAnnotated;
         thumbnailRow.dataset.preannotated = isPreannotated ? 'true' : 'false';
+        thumbnailRow.dataset.annotationCount = annoCount;
+        thumbnailRow.dataset.classCount = classCount;
+        updateBadge(thumbnailRow.querySelector('.thumbnail-image'), annoCount);
     }
     refreshImageList();
 }
@@ -143,7 +170,13 @@ function generateClassTags() {
             label.textContent = cls;
 
             tag.addEventListener('click', () => {
-                if (selectedAnnotation) {
+                if (selectedAnnotations && selectedAnnotations.length > 0) {
+                    pushToUndoStack();
+                    selectedAnnotations.forEach(ann => { ann.label = cls; });
+                    setSelectedClass(cls);
+                    drawImage();
+                    updateTagHighlights();
+                } else if (selectedAnnotation) {
                     pushToUndoStack();
                     selectedAnnotation.label = cls;
                     setSelectedClass(cls);
@@ -332,10 +365,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.getElementById('viewport-btn-grid').addEventListener('click', () => switchToAnnotationView());
+    const viewportBtnGrid = document.getElementById('viewport-btn-grid');
+    if (viewportBtnGrid) {
+        viewportBtnGrid.addEventListener('click', () => switchToAnnotationView());
+    }
+    const viewportBtnTop = document.getElementById('viewport-btn-top');
+    if (viewportBtnTop) {
+        viewportBtnTop.addEventListener('click', () => switchToAnnotationView());
+    }
+
+    // Class filter dropdown in toolbar
+    const classFilter = document.getElementById('class-filter');
+    if (classFilter) {
+        classFilter.addEventListener('change', (e) => {
+            filterByClass(e.target.value);
+            updateBulkActionsState();
+        });
+    }
     document.getElementById('viewport-btn-annotation').addEventListener('click', switchToGridView);
 
-    initializeImageListControls({ sortImages, filterImages, onChange: updateBulkActionsState });
+    initializeImageListControls({ sortImages, filterImages, setCustomFilterRange, onChange: updateBulkActionsState });
 
     document.querySelectorAll('.thumbnail-row').forEach(row => {
         row.addEventListener('click', () => {
@@ -349,6 +398,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('grid-toggle-btn').addEventListener('click', () => toggleView('grid'));
     document.getElementById('list-toggle-btn').addEventListener('click', () => toggleView('list'));
+
+    // Status filter pills (Ultralytics HUB style)
+    document.querySelectorAll('.status-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            filterImages(pill.dataset.filter);
+            updateBulkActionsState();
+        });
+    });
+
+    // Live search by image name
+    const imageSearch = document.getElementById('image-name-search');
+    if (imageSearch) {
+        imageSearch.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('#grid-thumbnails .grid-card').forEach(card => {
+                const id = (card.dataset.id || '').toLowerCase();
+                card.style.display = id.includes(term) ? '' : 'none';
+            });
+            document.querySelectorAll('#list-table tbody tr').forEach(row => {
+                const id = (row.dataset.id || '').toLowerCase();
+                row.style.display = id.includes(term) ? '' : 'none';
+            });
+        });
+    }
 
     document.getElementById('delete-images-btn').addEventListener('click', () => {
         const checkedBoxes = document.querySelectorAll('.image-checkbox:checked');
@@ -450,13 +525,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     slider.classList.remove('disabled');
                     setConfidenceThreshold(lastConfidenceValue);
                     confidenceValueSpan.textContent = lastConfidenceValue.toFixed(2);
-                    hidePredictionBtn.textContent = 'Hide Pred.';
+                    hidePredictionBtn.innerHTML = '<i class="fa-solid fa-eye"></i> <span>AI</span>';
+                    hidePredictionBtn.classList.remove('active');
                 } else {
                     lastConfidenceValue = parseFloat(slider.value);
                     slider.classList.add('disabled');
                     setConfidenceThreshold(1.01);
                     confidenceValueSpan.textContent = '1.01';
-                    hidePredictionBtn.textContent = 'Show Pred.';
+                    hidePredictionBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> <span>AI</span>';
+                    hidePredictionBtn.classList.add('active');
                 }
                 updateAnnotationSummary();
                 drawImage();
@@ -496,14 +573,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     enableSplitting.addEventListener('change', function () {
         const isEnabled = this.checked;
-        document.querySelectorAll('.split-choice input:not(#train-split)').forEach(checkbox => {
+        document.querySelectorAll('.ratio-control input[type="checkbox"]:not(#train-split)').forEach(checkbox => {
             checkbox.disabled = !isEnabled;
         });
+        const presetsGroup = document.getElementById('split-presets-group');
+        if (presetsGroup) {
+            presetsGroup.style.opacity = isEnabled ? '1' : '0.4';
+            presetsGroup.style.pointerEvents = isEnabled ? 'auto' : 'none';
+        }
         updateRatioControls();
+        adjustRatios();
     });
 
     splitCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function () {
+            if (!this.checked && this.value !== 'train') {
+                ratios[this.value] = 0;
+                const rangeEl = document.getElementById(`${this.value}-ratio`);
+                const numEl = document.getElementById(`${this.value}-ratio-value`);
+                if (rangeEl) rangeEl.value = 0;
+                if (numEl) numEl.value = 0;
+            } else if (this.checked && ratios[this.value] === 0) {
+                ratios[this.value] = 15;
+                const rangeEl = document.getElementById(`${this.value}-ratio`);
+                const numEl = document.getElementById(`${this.value}-ratio-value`);
+                if (rangeEl) rangeEl.value = 15;
+                if (numEl) numEl.value = 15;
+            }
             updateRatioControls();
             adjustRatios();
         });
@@ -512,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('input[type="range"], input[type="number"]').forEach(input => {
         input.addEventListener('input', function () {
             const split = this.closest('.ratio-control').dataset.split;
-            const value = parseInt(this.value);
+            const value = parseInt(this.value) || 0;
 
             if (this.type === 'range') {
                 document.getElementById(`${split}-ratio-value`).value = value;
@@ -525,33 +621,80 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Preset buttons handling
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!enableSplitting.checked) return;
+            presetBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const [t, v, te] = btn.dataset.preset.split(',').map(Number);
+            const trainCb = document.getElementById('train-split');
+            const valCb = document.getElementById('val-split');
+            const testCb = document.getElementById('test-split');
+            if (trainCb) trainCb.checked = true;
+            if (valCb) valCb.checked = true;
+            if (testCb) testCb.checked = true;
+            ratios.train = t;
+            ratios.val = v;
+            ratios.test = te;
+            updateRatioInputs();
+            updateRatioControls();
+            adjustRatios();
+        });
+    });
+
     function updateRatioControls() {
         const isEnabled = enableSplitting.checked;
-        const selectedSplits = Array.from(splitCheckboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
-
         ratioControls.forEach(control => {
-            const split = control.dataset.split;
-            if (selectedSplits.includes(split) && isEnabled) {
-                control.style.display = 'flex';
+            control.style.display = 'flex';
+            const cb = control.querySelector('input[type="checkbox"]');
+            const slider = control.querySelector('input[type="range"]');
+            const numInput = control.querySelector('input[type="number"]');
+
+            if (!isEnabled) {
+                control.classList.add('disabled-split');
+                if (cb && cb.id !== 'train-split') cb.disabled = true;
+                if (slider) slider.disabled = true;
+                if (numInput) numInput.disabled = true;
+            } else if (cb && cb.id !== 'train-split' && !cb.checked) {
+                control.classList.add('disabled-split');
+                cb.disabled = false;
+                if (slider) slider.disabled = true;
+                if (numInput) numInput.disabled = true;
             } else {
-                control.style.display = 'none';
+                control.classList.remove('disabled-split');
+                if (cb && cb.id !== 'train-split') cb.disabled = false;
+                if (slider) slider.disabled = false;
+                if (numInput) numInput.disabled = false;
             }
         });
-
-        if (isEnabled) {
-            document.querySelector('.ratio-control[data-split="train"]').style.display = 'flex';
-        }
     }
 
     function adjustRatios() {
+        const segTrain = document.getElementById('dist-segment-train');
+        const segVal = document.getElementById('dist-segment-val');
+        const segTest = document.getElementById('dist-segment-test');
+        const valTrain = document.getElementById('dist-val-train');
+        const valVal = document.getElementById('dist-val-val');
+        const valTest = document.getElementById('dist-val-test');
+        const statusBadge = document.getElementById('ratio-status-badge');
+
         if (!enableSplitting.checked) {
             ratios = { train: 100, test: 0, val: 0 };
             updateRatioInputs();
-            ratioTotal.textContent = '100';
-            ratioError.style.display = 'none';
-            document.getElementById('confirm-export').disabled = false;
+            if (ratioTotal) ratioTotal.textContent = '100';
+            if (ratioError) ratioError.style.display = 'none';
+            if (statusBadge) {
+                statusBadge.className = 'ratio-status-badge valid';
+                statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Total:</span> <strong id="ratio-total-value">100</strong>% <span class="badge-status-text">(Single Train Split)</span>';
+            }
+            if (segTrain) { segTrain.style.width = '100%'; segTrain.style.display = 'flex'; }
+            if (valTrain) valTrain.textContent = '100%';
+            if (segVal) { segVal.style.width = '0%'; segVal.style.display = 'none'; }
+            if (segTest) { segTest.style.width = '0%'; segTest.style.display = 'none'; }
+            const confirmBtn = document.getElementById('confirm-export');
+            if (confirmBtn) confirmBtn.disabled = false;
             return;
         }
 
@@ -564,29 +707,79 @@ document.addEventListener('DOMContentLoaded', function () {
             ratios.test = 0;
             ratios.val = 0;
             updateRatioInputs();
-            ratioTotal.textContent = '100';
-            ratioError.style.display = 'none';
-            document.getElementById('confirm-export').disabled = false;
+            if (ratioTotal) ratioTotal.textContent = '100';
+            if (ratioError) ratioError.style.display = 'none';
+            if (statusBadge) {
+                statusBadge.className = 'ratio-status-badge valid';
+                statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Total:</span> <strong id="ratio-total-value">100</strong>% <span class="badge-status-text">(Valid)</span>';
+            }
+            if (segTrain) { segTrain.style.width = '100%'; segTrain.style.display = 'flex'; }
+            if (valTrain) valTrain.textContent = '100%';
+            if (segVal) { segVal.style.width = '0%'; segVal.style.display = 'none'; }
+            if (segTest) { segTest.style.width = '0%'; segTest.style.display = 'none'; }
+            const confirmBtn = document.getElementById('confirm-export');
+            if (confirmBtn) confirmBtn.disabled = false;
             return;
         }
 
-        const total = selectedSplits.reduce((sum, split) => sum + ratios[split], 0);
+        const total = selectedSplits.reduce((sum, split) => sum + (ratios[split] || 0), 0);
+        if (ratioTotal) ratioTotal.textContent = total;
 
-        ratioTotal.textContent = total;
+        // Update live segments
+        const trainW = selectedSplits.includes('train') ? ratios.train : 0;
+        const valW = selectedSplits.includes('val') ? ratios.val : 0;
+        const testW = selectedSplits.includes('test') ? ratios.test : 0;
 
-        if (total !== 100) {
-            ratioError.style.display = 'flex';
-            document.getElementById('confirm-export').disabled = true;
-        } else {
-            ratioError.style.display = 'none';
-            document.getElementById('confirm-export').disabled = false;
+        if (segTrain) {
+            segTrain.style.width = `${trainW}%`;
+            if (valTrain) valTrain.textContent = `${trainW}%`;
+            segTrain.style.display = trainW > 0 ? 'flex' : 'none';
         }
+        if (segVal) {
+            segVal.style.width = `${valW}%`;
+            if (valVal) valVal.textContent = `${valW}%`;
+            segVal.style.display = valW > 0 ? 'flex' : 'none';
+        }
+        if (segTest) {
+            segTest.style.width = `${testW}%`;
+            if (valTest) valTest.textContent = `${testW}%`;
+            segTest.style.display = testW > 0 ? 'flex' : 'none';
+        }
+
+        const confirmBtn = document.getElementById('confirm-export');
+        if (total !== 100) {
+            if (ratioError) ratioError.style.display = 'flex';
+            if (statusBadge) {
+                statusBadge.className = 'ratio-status-badge invalid';
+                statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Total:</span> <strong id="ratio-total-value">${total}</strong>% <span class="badge-status-text">(Must equal 100%)</span>`;
+            }
+            if (confirmBtn) confirmBtn.disabled = true;
+        } else {
+            if (ratioError) ratioError.style.display = 'none';
+            if (statusBadge) {
+                statusBadge.className = 'ratio-status-badge valid';
+                statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Total:</span> <strong id="ratio-total-value">100</strong>% <span class="badge-status-text">(Valid)</span>';
+            }
+            if (confirmBtn) confirmBtn.disabled = false;
+        }
+
+        // Sync active preset chip
+        const curPreset = `${ratios.train},${ratios.val},${ratios.test}`;
+        presetBtns.forEach(btn => {
+            if (btn.dataset.preset === curPreset && total === 100 && enableSplitting.checked) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
     }
 
     function updateRatioInputs() {
         for (const split in ratios) {
-            document.getElementById(`${split}-ratio`).value = ratios[split];
-            document.getElementById(`${split}-ratio-value`).value = ratios[split];
+            const rangeEl = document.getElementById(`${split}-ratio`);
+            const numEl = document.getElementById(`${split}-ratio-value`);
+            if (rangeEl) rangeEl.value = ratios[split];
+            if (numEl) numEl.value = ratios[split];
         }
     }
 
@@ -776,14 +969,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     let selectedFormat = null;
-    exportBtn.addEventListener('click', () => {
-        exportModal.style.display = 'flex';
+
+    function initExportControls() {
         selectedFormat = null;
-        confirmExportBtn.disabled = true;
-        nextExportBtn.disabled = true;
+        if (confirmExportBtn) confirmExportBtn.disabled = true;
+        if (nextExportBtn) nextExportBtn.disabled = true;
         formatCards.forEach(card => card.classList.remove('selected'));
-        tabLinks[0].click();
-        enableSplitting.checked = true;
+        if (tabLinks.length > 0) tabLinks[0].click();
+        if (enableSplitting) enableSplitting.checked = true;
         splitCheckboxes.forEach(cb => {
             if (cb.id === 'train-split') {
                 cb.checked = true;
@@ -797,14 +990,14 @@ document.addEventListener('DOMContentLoaded', function () {
         updateRatioInputs();
         updateRatioControls();
         adjustRatios();
-        const setupType = document.getElementById('app-config').dataset.setupType;
+        const setupType = config.setupType;
         formatCards.forEach(card => {
             const format = card.dataset.format;
             if ((setupType === "Oriented Bounding Box" && !['CSV', 'YOLO'].includes(format)) ||
                 (setupType === "Segmentation" && !['COCO', 'YOLO'].includes(format))) {
                 card.style.display = 'none';
             } else {
-                card.style.display = 'flex';
+                card.style.display = '';
             }
         });
         // Check for unannotated images and show warning
@@ -817,124 +1010,168 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (warningEl) {
             warningEl.style.display = 'none';
         }
-    });
-    exportCloseBtn.addEventListener('click', () => {
-        exportModal.style.display = 'none';
-        const warningEl = document.getElementById('export-warning');
-        if (warningEl) warningEl.style.display = 'none';
-    });
-    cancelExportBtn.addEventListener('click', () => {
-        exportModal.style.display = 'none';
-        const warningEl = document.getElementById('export-warning');
-        if (warningEl) warningEl.style.display = 'none';
-    });
-    nextExportBtn.addEventListener('click', () => {
-        tabLinks[1].click();
-    });
-    backExportBtn.addEventListener('click', () => {
-        tabLinks[0].click();
-    });
+    }
+
+    // Initialize export configuration immediately for the inline tab
+    initExportControls();
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            if (exportModal) exportModal.style.display = 'flex';
+            initExportControls();
+        });
+    }
+    if (exportCloseBtn && exportModal) {
+        exportCloseBtn.addEventListener('click', () => {
+            exportModal.style.display = 'none';
+            const warningEl = document.getElementById('export-warning');
+            if (warningEl) warningEl.style.display = 'none';
+        });
+    }
+    if (cancelExportBtn && exportModal) {
+        cancelExportBtn.addEventListener('click', () => {
+            exportModal.style.display = 'none';
+            const warningEl = document.getElementById('export-warning');
+            if (warningEl) warningEl.style.display = 'none';
+        });
+    }
+    if (nextExportBtn) {
+        nextExportBtn.addEventListener('click', () => {
+            tabLinks[1].click();
+        });
+    }
+    if (backExportBtn) {
+        backExportBtn.addEventListener('click', () => {
+            tabLinks[0].click();
+        });
+    }
     formatCards.forEach(card => {
         card.addEventListener('click', () => {
             formatCards.forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             selectedFormat = card.dataset.format;
-            nextExportBtn.disabled = false;
+            if (nextExportBtn) nextExportBtn.disabled = false;
+            if (confirmExportBtn) confirmExportBtn.disabled = false;
         });
     });
-    document.getElementById('export-download').addEventListener('change', () => {
-        document.getElementById('export-path-container').style.display = 'none';
-    });
-    document.getElementById('export-path').addEventListener('change', () => {
-        document.getElementById('export-path-container').style.display = 'block';
-    });
-    confirmExportBtn.addEventListener('click', async () => {
-        if (!selectedFormat) {
-            alert('Please select an export format');
-            return;
+    const dlRadio = document.getElementById('export-download');
+    const pathRadio = document.getElementById('export-path');
+    const cardDownload = document.getElementById('save-card-download');
+    const cardPath = document.getElementById('save-card-path');
+
+    function syncSaveCardClasses() {
+        if (dlRadio && dlRadio.checked) {
+            if (cardDownload) cardDownload.classList.add('selected');
+            if (cardPath) cardPath.classList.remove('selected');
+        } else if (pathRadio && pathRadio.checked) {
+            if (cardPath) cardPath.classList.add('selected');
+            if (cardDownload) cardDownload.classList.remove('selected');
         }
-        const selectedCheckboxes = document.querySelectorAll('.image-checkbox:checked');
-        const imagePaths = Array.from(selectedCheckboxes).map(cb => cb.dataset.path);
-        const splitChoices = [];
-        const splitRatios = {};
-        if (enableSplitting.checked) {
-            splitCheckboxes.forEach(checkbox => {
-                if (checkbox.checked) {
-                    splitChoices.push(checkbox.value);
-                    splitRatios[checkbox.value] = ratios[checkbox.value];
-                }
-            });
-            if (splitChoices.length === 1 && splitChoices[0] === 'train') {
-                splitRatios.train = 100;
-            }
-        } else {
-            splitChoices.push('train');
-            splitRatios.train = 100;
-        }
-        let data = {
-            format: selectedFormat,
-            images: imagePaths,
-            split_choices: splitChoices,
-            split_ratios: splitRatios
-        };
-        const option = document.querySelector('input[name="export_option"]:checked').value;
-        if (option === 'path') {
-            const savePath = document.getElementById('export-path-input').value.trim();
-            if (!savePath) {
-                alert('Please enter the save path');
+    }
+
+    if (dlRadio) {
+        dlRadio.addEventListener('change', () => {
+            const container = document.getElementById('export-path-container');
+            if (container) container.style.display = 'none';
+            syncSaveCardClasses();
+        });
+    }
+    if (pathRadio) {
+        pathRadio.addEventListener('change', () => {
+            const container = document.getElementById('export-path-container');
+            if (container) container.style.display = 'block';
+            syncSaveCardClasses();
+        });
+    }
+    if (confirmExportBtn) {
+        confirmExportBtn.addEventListener('click', async () => {
+            if (!selectedFormat) {
+                alert('Please select an export format');
                 return;
             }
-            data.local_export = true;
-            data.export_path = savePath;
-        }
-        showLoadingOverlay('Exporting...');
-        try {
-            const response = await fetch(`/annotation/export/${projectName}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) {
-                throw new Error(response.statusText);
-            }
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const result = await response.json();
-                if (result.success) {
-                    showSuccessModal(`Export saved to ${result.saved_path}`);
-                } else {
-                    throw new Error(result.error || 'Unknown error');
+            const selectedCheckboxes = document.querySelectorAll('.image-checkbox:checked');
+            const imagePaths = Array.from(selectedCheckboxes).map(cb => cb.dataset.path);
+            const splitChoices = [];
+            const splitRatios = {};
+            if (enableSplitting.checked) {
+                splitCheckboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        splitChoices.push(checkbox.value);
+                        splitRatios[checkbox.value] = ratios[checkbox.value];
+                    }
+                });
+                if (splitChoices.length === 1 && splitChoices[0] === 'train') {
+                    splitRatios.train = 100;
                 }
             } else {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${projectName}_${selectedFormat}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
+                splitChoices.push('train');
+                splitRatios.train = 100;
             }
-            exportModal.style.display = 'none';
-        } catch (error) {
-            console.error('Export error:', error);
-            alert('Export failed: ' + error.message);
-        } finally {
-            hideLoadingOverlay();
-        }
-    });
+            let data = {
+                format: selectedFormat,
+                images: imagePaths,
+                split_choices: splitChoices,
+                split_ratios: splitRatios
+            };
+            const option = document.querySelector('input[name="export_option"]:checked')?.value || 'download';
+            if (option === 'path') {
+                const savePath = document.getElementById('export-path-input').value.trim();
+                if (!savePath) {
+                    alert('Please enter the save path');
+                    return;
+                }
+                data.local_export = true;
+                data.export_path = savePath;
+            }
+            showLoadingOverlay('Exporting...');
+            try {
+                const response = await fetch(`/annotation/export/${projectName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    throw new Error(response.statusText);
+                }
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    if (result.success) {
+                        showSuccessModal(`Export saved to ${result.saved_path}`);
+                    } else {
+                        throw new Error(result.error || 'Unknown error');
+                    }
+                } else {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${projectName}_${selectedFormat}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }
+                if (exportModal) exportModal.style.display = 'none';
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Export failed: ' + error.message);
+            } finally {
+                hideLoadingOverlay();
+            }
+        });
+    }
 
     const lazyImages = document.querySelectorAll('.lazy-load');
     const observer = new IntersectionObserver((entries, observer) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
+                const markLoaded = () => img.classList.add('loaded');
+                img.addEventListener('load', markLoaded, { once: true });
+                if (img.complete && img.naturalWidth > 0) markLoaded();
                 if (!img.src) {
                     img.src = img.dataset.src;
-                    img.onload = () => {
-                        img.classList.add('loaded');
-                    };
                     img.onerror = () => {
                         console.error('Failed to load image:', img.dataset.src);
                     };
@@ -1229,6 +1466,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Annotation Cache Cleared on Load');
 
     function addSparkles() {
+        if (!aiPreannotatorBtn) return;
         const sparkle = document.createElement('span');
         sparkle.className = 'sparkle';
         sparkle.style.left = `${Math.random() * 100}%`;

@@ -152,3 +152,102 @@ export function pushToUndoStack() {
     if (stack.length >= 50) stack.shift();
     stack.push(JSON.parse(JSON.stringify(annotations)));
 }
+
+export function isPointInAnnotationImageCoords(imgPoint, annotation) {
+    if (!annotation) return false;
+    if (annotation.type === 'rect' || annotation.type === 'obbox') {
+        const centerX = annotation.x + annotation.width / 2;
+        const centerY = annotation.y + annotation.height / 2;
+        const dx = imgPoint.x - centerX;
+        const dy = imgPoint.y - centerY;
+        const rad = (annotation.rotation || 0) * Math.PI / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const localX = dx * cos + dy * sin;
+        const localY = -dx * sin + dy * cos;
+        const halfW = annotation.width / 2;
+        const halfH = annotation.height / 2;
+        return localX >= -halfW && localX <= halfW && localY >= -halfH && localY <= halfH;
+    } else if (annotation.type === 'polygon' && Array.isArray(annotation.points)) {
+        let inside = false;
+        const pts = annotation.points;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+            const xi = pts[i].x, yi = pts[i].y;
+            const xj = pts[j].x, yj = pts[j].y;
+            const intersect = ((yi > imgPoint.y) !== (yj > imgPoint.y)) &&
+                (imgPoint.x < (xj - xi) * (imgPoint.y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+    return false;
+}
+
+export function isAnnotationIntersectingBox(annotation, box) {
+    if (!annotation || !box || box.width < 0 || box.height < 0) return false;
+    const bx1 = box.x;
+    const by1 = box.y;
+    const bx2 = box.x + box.width;
+    const by2 = box.y + box.height;
+
+    const isPointInBox = (p) => p.x >= bx1 && p.x <= bx2 && p.y >= by1 && p.y <= by2;
+
+    const segmentsIntersect = (p1, p2, p3, p4) => {
+        const ccw = (A, B, C) => (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+        return (ccw(p1, p3, p4) !== ccw(p2, p3, p4)) && (ccw(p1, p2, p3) !== ccw(p1, p2, p4));
+    };
+
+    const boxSegments = [
+        [{ x: bx1, y: by1 }, { x: bx2, y: by1 }],
+        [{ x: bx2, y: by1 }, { x: bx2, y: by2 }],
+        [{ x: bx2, y: by2 }, { x: bx1, y: by2 }],
+        [{ x: bx1, y: by2 }, { x: bx1, y: by1 }]
+    ];
+
+    if (annotation.type === 'rect' && !annotation.rotation) {
+        const ax1 = annotation.x;
+        const ay1 = annotation.y;
+        const ax2 = annotation.x + annotation.width;
+        const ay2 = annotation.y + annotation.height;
+        return !(bx2 < ax1 || bx1 > ax2 || by2 < ay1 || by1 > ay2);
+    }
+
+    let points = [];
+    if (annotation.type === 'rect' || annotation.type === 'obbox') {
+        points = getRotatedCorners(annotation);
+    } else if (annotation.type === 'polygon' && Array.isArray(annotation.points)) {
+        points = annotation.points;
+    }
+
+    if (points.length === 0) return false;
+
+    // 1. Any point of annotation is inside box
+    for (let i = 0; i < points.length; i++) {
+        if (isPointInBox(points[i])) return true;
+    }
+
+    // 2. Any point of box is inside annotation
+    const boxCorners = [
+        { x: bx1, y: by1 },
+        { x: bx2, y: by1 },
+        { x: bx2, y: by2 },
+        { x: bx1, y: by2 }
+    ];
+    for (let i = 0; i < boxCorners.length; i++) {
+        if (isPointInAnnotationImageCoords(boxCorners[i], annotation)) return true;
+    }
+
+    // 3. Any segment of annotation intersects any edge of box
+    for (let i = 0; i < points.length; i++) {
+        const nextIdx = (i + 1) % points.length;
+        const p1 = points[i];
+        const p2 = points[nextIdx];
+        for (let j = 0; j < boxSegments.length; j++) {
+            if (segmentsIntersect(p1, p2, boxSegments[j][0], boxSegments[j][1])) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}

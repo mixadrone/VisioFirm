@@ -1,7 +1,8 @@
 import { navigateImage } from './viewManagement.js';
-import { mode, gridEnabled, selectedAnnotation, annotations, undoStack, viewport, currentImage, setupType, currentAnnotation, currentImageKey, setMode, setGridEnabled, setSelectedAnnotation, setSelectedPointIndex, setCurrentAnnotation, setAnnotations, setIsModified, updateTagHighlights } from './globals.js';
+import { mode, gridEnabled, selectedAnnotation, selectedAnnotations, setSelectedAnnotations, clearSelectedAnnotations, annotations, undoStack, viewport, currentImage, setupType, currentAnnotation, currentImageKey, thumbnailImages, currentImageIndex, setMode, setGridEnabled, setSelectedAnnotation, setSelectedPointIndex, setCurrentAnnotation, setAnnotations, setIsModified, updateTagHighlights } from './globals.js';
+import { clampAnnotationToBounds, clampToImageBounds } from './annotationCore.js';
 import { drawImage, resetView } from './annotationDrawing.js';
-import { updateAnnotationSummary } from './imageHandling.js';
+import { updateAnnotationSummary, selectImage } from './imageHandling.js';
 import { pushToUndoStack } from './annotationCore.js';
 import { updateToolModeUI, setIsDrawing, setIsDragging, setIsPanning } from './globals.js';
 
@@ -10,7 +11,7 @@ export function clearAllAnnotations() {
     pushToUndoStack();
     setAnnotations([]);
     setCurrentAnnotation(null);
-    setSelectedAnnotation(null);
+    clearSelectedAnnotations();
     setSelectedPointIndex(-1);
     setIsDrawing(false);
     setIsDragging(false);
@@ -82,10 +83,11 @@ export function initToolControls() {
     const deleteBtn = document.getElementById('delete-btn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
-            if (selectedAnnotation) {
+            const toDelete = (selectedAnnotations && selectedAnnotations.length > 0) ? selectedAnnotations : (selectedAnnotation ? [selectedAnnotation] : []);
+            if (toDelete.length > 0) {
                 pushToUndoStack();
-                setAnnotations(annotations.filter(a => a !== selectedAnnotation)); // Use setter
-                setSelectedAnnotation(null); // Use setter
+                setAnnotations(annotations.filter(a => !toDelete.includes(a)));
+                clearSelectedAnnotations();
                 setSelectedPointIndex(-1);
                 setIsModified(true);
                 updateTagHighlights();
@@ -114,13 +116,23 @@ export function initToolControls() {
     const duplicateBtn = document.getElementById('duplicate-btn');
     if (duplicateBtn) {
         duplicateBtn.addEventListener('click', () => {
-            if (selectedAnnotation) {
+            const toDuplicate = (selectedAnnotations && selectedAnnotations.length > 0) ? selectedAnnotations : (selectedAnnotation ? [selectedAnnotation] : []);
+            if (toDuplicate.length > 0) {
                 pushToUndoStack();
-                const duplicate = scaleAnnotation(selectedAnnotation, currentImage.width, currentImage.height, currentImage.width, currentImage.height);
-                duplicate.x += 0.3 * duplicate.x;
-                duplicate.y += 0.3 * duplicate.y;
-                annotations.push(duplicate); // Note: Direct push is okay since we're modifying the array, not reassigning it
-                setSelectedAnnotation(duplicate); // Use setter
+                const duplicates = toDuplicate.map(item => {
+                    const dup = scaleAnnotation(item, currentImage.width, currentImage.height, currentImage.width, currentImage.height);
+                    if (dup.type === 'rect' || dup.type === 'obbox') {
+                        dup.x = (dup.x || 0) + 12;
+                        dup.y = (dup.y || 0) + 12;
+                        clampAnnotationToBounds(dup);
+                    } else if (dup.type === 'polygon' && Array.isArray(dup.points)) {
+                        dup.points = dup.points.map(p => clampToImageBounds({ x: p.x + 12, y: p.y + 12 }));
+                    }
+                    return dup;
+                });
+                setAnnotations([...annotations, ...duplicates]);
+                setSelectedAnnotations(duplicates);
+                updateTagHighlights();
                 drawImage();
             }
         });
@@ -153,6 +165,42 @@ export function initToolControls() {
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
             navigateImage(1);
+        });
+    }
+
+    const jumpInput = document.getElementById('image-jump-input');
+    if (jumpInput) {
+        const handleJump = () => {
+            if (!thumbnailImages || thumbnailImages.length === 0) return;
+            let targetNum = parseInt(jumpInput.value, 10);
+            if (isNaN(targetNum)) {
+                targetNum = (currentImageIndex >= 0 ? currentImageIndex : 0) + 1;
+            }
+            targetNum = Math.max(1, Math.min(thumbnailImages.length, targetNum));
+            jumpInput.value = targetNum;
+            const targetIdx = targetNum - 1;
+            if (targetIdx !== currentImageIndex && thumbnailImages[targetIdx]) {
+                selectImage(thumbnailImages[targetIdx], targetIdx);
+            }
+        };
+
+        jumpInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleJump();
+                jumpInput.blur();
+            } else if (e.key === 'Escape') {
+                jumpInput.value = (currentImageIndex >= 0 ? currentImageIndex : 0) + 1;
+                jumpInput.blur();
+            }
+        });
+
+        jumpInput.addEventListener('change', () => {
+            handleJump();
+        });
+
+        jumpInput.addEventListener('focus', () => {
+            jumpInput.select();
         });
     }
 

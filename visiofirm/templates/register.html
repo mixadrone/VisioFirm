@@ -1,137 +1,232 @@
 {% extends "base.html" %}
-{% block title %}Register{% endblock %}
-{% block content %}
-<!-- Radial gradient background -->
-<div class="radial-background"></div>
+{% block title %}Sign Up{% endblock %}
+{% block breadcrumb %}
+<a href="/" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Home</a>
+<span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+<span class="breadcrumb-current">Sign Up</span>
+{% endblock %}
 
-<div class="register-form">
-    <h2>Register</h2>
-    <form method="post" action="/auth/register">
-        <div class="form-group">
-            <label for="first_name">First Name</label>
-            <input type="text" id="first_name" name="first_name" required>
+{% block content %}
+<div class="auth-page-container">
+    <div class="auth-card register-card">
+        <div class="auth-header">
+            <img src="/static/img/VisioFirm_logo.png" alt="VisioFirm" class="auth-logo">
+            <h2>Create Account</h2>
+            <p class="auth-subtitle">Join VisioFirm to start annotating faster</p>
         </div>
-        <div class="form-group">
-            <label for="last_name">Last Name</label>
-            <input type="text" id="last_name" name="last_name" required>
+
+        <form method="post" action="/auth/register" class="auth-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="John" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Doe" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-icon-wrapper">
+                    <i class="fa-regular fa-user input-icon"></i>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <div class="input-icon-wrapper">
+                    <i class="fa-regular fa-envelope input-icon"></i>
+                    <input type="email" id="email" name="email" placeholder="name@company.com" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-icon-wrapper">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" id="password" name="password" placeholder="Create a secure password" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="company">Company (Optional)</label>
+                <div class="input-icon-wrapper">
+                    <i class="fa-regular fa-building input-icon"></i>
+                    <input type="text" id="company" name="company" placeholder="Organization name">
+                </div>
+            </div>
+
+            <button type="submit" class="auth-submit-btn">
+                <span>Create Account</span>
+                <i class="fa-solid fa-user-plus"></i>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="/auth/login">Sign In</a></p>
         </div>
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <div class="form-group">
-            <label for="company">Company (Optional)</label>
-            <input type="text" id="company" name="company">
-        </div>
-        <button type="submit">Register</button>
-    </form>
-    <p>Already have an account? <a href="/auth/login">Login</a></p>
+    </div>
 </div>
 
 <style>
-    /* Radial gradient background */
-    .radial-background {
-        position: fixed;
-        top: 0;
-        left: 0;
+    .auth-page-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 16px;
+        background: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.12) 0%, transparent 60%);
+        min-height: 100%;
+    }
+
+    .auth-card {
         width: 100%;
-        height: 100%;
-        background:
-            radial-gradient(circle at 20% 30%, rgba(212, 255, 246, 0.8) 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, rgba(142, 140, 250, 0.8) 0%, transparent 50%),
-            radial-gradient(circle at 40% 90%, rgba(192, 186, 255, 0.8) 0%, transparent 50%),
-            radial-gradient(circle at 70% 20%, rgba(187, 187, 187, 0.8) 0%, transparent 50%);
-        background-size: 200% 200%;
-        animation: moveBalls 20s ease infinite;
-        filter: blur(80px);
-        z-index: -1;
+        max-width: 480px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-hover);
+        border-radius: 16px;
+        padding: 36px 32px;
+        animation: fadeIn 0.3s ease;
     }
 
-    @keyframes moveBalls {
-        0% {
-            background-position: 0% 0%;
-        }
-        50% {
-            background-position: 100% 100%;
-        }
-        100% {
-            background-position: 0% 0%;
-        }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Register form styling */
-    .register-form {
-        max-width: 700px;
-        margin: 50px auto;
-        padding: 20px;
-        background: rgba(255, 255, 255, 0.9);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        border-radius: 8px;
+    .auth-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .auth-logo {
+        height: 44px;
+        width: 44px;
+        object-fit: contain;
+        margin-bottom: 12px;
+    }
+
+    .auth-header h2 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+        font-size: 0.86rem;
+        color: var(--text-light);
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .auth-form .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .auth-form label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .input-icon-wrapper {
         position: relative;
-        z-index: 1;
+        display: flex;
+        align-items: center;
     }
 
-    .register-form h2 {
-        text-align: center;
-        margin-bottom: 20px;
-        color: #333;
+    .input-icon-wrapper .input-icon {
+        position: absolute;
+        left: 12px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
     }
 
-    .form-group {
-        margin-bottom: 15px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        color: #333;
-    }
-
-    .form-group input {
+    .input-icon-wrapper input {
         width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        padding: 10px 14px 10px 38px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        outline: none;
+        transition: var(--transition);
     }
 
-    .form-group input[required] {
-        border-color: #999;
-    }
-
-    button[type="submit"] {
+    .form-row input {
         width: 100%;
-        padding: 10px;
-        background: #3498db;
-        color: white;
+        padding: 10px 14px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        outline: none;
+        transition: var(--transition);
+    }
+
+    .input-icon-wrapper input:focus,
+    .form-row input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-alpha);
+    }
+
+    .auth-submit-btn {
+        margin-top: 8px;
+        padding: 11px 16px;
+        background: var(--primary-color);
+        color: #ffffff;
         border: none;
-        border-radius: 4px;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: var(--transition);
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
     }
 
-    button[type="submit"]:hover {
-        background: #2980b9;
+    .auth-submit-btn:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
+        transform: translateY(-1px);
     }
 
-    .register-form p {
+    .auth-footer {
+        margin-top: 24px;
         text-align: center;
-        margin-top: 15px;
-        color: #333;
+        font-size: 0.85rem;
+        color: var(--text-light);
     }
 
-    .register-form p a {
-        color: #3498db;
+    .auth-footer a {
+        color: var(--primary-color);
         text-decoration: none;
+        font-weight: 600;
     }
 
-    .register-form p a:hover {
+    .auth-footer a:hover {
         text-decoration: underline;
     }
 </style>

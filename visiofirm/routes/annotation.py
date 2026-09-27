@@ -319,6 +319,30 @@ async def annotation(
                     for row in cursor.fetchall()
                 }
             
+                # Fetch classes present per image (both confirmed and preannotations)
+                image_classes_map = {}
+                cursor.execute('''
+                    SELECT image_id, class_name FROM Annotations WHERE class_name IS NOT NULL
+                    UNION
+                    SELECT image_id, class_name FROM Preannotations WHERE class_name IS NOT NULL
+                ''')
+                for img_id_val, c_name in cursor.fetchall():
+                    if img_id_val not in image_classes_map:
+                        image_classes_map[img_id_val] = set()
+                    image_classes_map[img_id_val].add(c_name)
+
+                # Fetch confirmed annotations count and unique class count per image
+                anno_count_map = {}
+                class_count_map = {}
+                cursor.execute('''
+                    SELECT image_id, COUNT(*), COUNT(DISTINCT class_name)
+                    FROM Annotations
+                    GROUP BY image_id
+                ''')
+                for img_id_val, a_cnt, c_cnt in cursor.fetchall():
+                    anno_count_map[img_id_val] = a_cnt
+                    class_count_map[img_id_val] = c_cnt
+            
                 for img in raw_images:
                     if len(img) < 2:
                         logger.warning(f"Invalid image tuple in get_images(): {img}")
@@ -335,6 +359,7 @@ async def annotation(
                 
                     annotated = url in annotated_images
                     pre_anno = url in preannotated_images
+                    classes_for_img = list(image_classes_map.get(img_id, []))
                 
                     image_data.append({
                         'id': img_id,
@@ -342,7 +367,10 @@ async def annotation(
                         'url': url,
                         'date': date,
                         'annotated': annotated,
-                        'preannotated': pre_anno
+                        'preannotated': pre_anno,
+                        'classes': classes_for_img,
+                        'annotation_count': anno_count_map.get(img_id, 0),
+                        'class_count': class_count_map.get(img_id, 0)
                     })
             
                 cursor.execute('''

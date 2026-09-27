@@ -25,16 +25,15 @@ function hexToRgba(hex, opacity) {
 }
 
 export function initAnnotationStyleSettings(config) {
-    const openBtn = document.getElementById('annotation-style-settings-btn');
-    const modal = document.getElementById('annotation-style-modal');
-    if (!openBtn || !modal) return;
+    // Support inline panel mode (no modal) — only saveBtn is required
+    const saveBtn = document.getElementById('annotation-style-save-btn');
+    if (!saveBtn) return;
 
     const classes = Array.isArray(config.classes) ? config.classes : [];
     let draftConfig = normalizeStyleConfig(config.annotationStyleConfig, classes);
     setCurrentStyleConfig(draftConfig, classes);
 
     const closeBtn = document.getElementById('annotation-style-close-btn');
-    const saveBtn = document.getElementById('annotation-style-save-btn');
     const resetBtn = document.getElementById('annotation-style-reset-btn');
     const errorBox = document.getElementById('annotation-style-error');
     const jsonEditor = document.getElementById('annotation-style-json-editor');
@@ -45,8 +44,12 @@ export function initAnnotationStyleSettings(config) {
     const selectedStrokeWidth = document.getElementById('style-selected-stroke-width');
     const selectedStrokeColor = document.getElementById('style-selected-stroke-color');
     const preannotationFillOpacity = document.getElementById('style-preannotation-fill-opacity');
+
+    // Workflow switches
     const autoSaveSwitch = document.getElementById('setting-autosave-switch');
     const fitToLabelsSwitch = document.getElementById('setting-fit-to-labels');
+    const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
+
     if (fitToLabelsSwitch) {
         fitToLabelsSwitch.checked = isFitToLabelsEnabled;
         fitToLabelsSwitch.addEventListener('change', event => {
@@ -55,15 +58,13 @@ export function initAnnotationStyleSettings(config) {
             else resetView();
         });
     }
-    const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
+
     if (advanceAfterSaveSwitch) {
         advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;
         advanceAfterSaveSwitch.addEventListener('change', event => {
             setIsAdvanceAfterSaveEnabled(event.target.checked);
         });
     }
-    const tabButtons = Array.from(document.querySelectorAll('.style-tab-btn'));
-    const tabPanels = Array.from(document.querySelectorAll('.style-tab-panel'));
 
     if (autoSaveSwitch) {
         autoSaveSwitch.checked = isAutoSaveEnabled;
@@ -72,13 +73,17 @@ export function initAnnotationStyleSettings(config) {
         });
     }
 
+    const tabButtons = Array.from(document.querySelectorAll('.style-tab-btn'));
+    const tabPanels = Array.from(document.querySelectorAll('.style-tab-panel'));
+
     function setError(message = '') {
+        if (!errorBox) return;
         errorBox.textContent = message;
         errorBox.style.display = message ? 'block' : 'none';
     }
 
     function updateJsonEditor() {
-        jsonEditor.value = JSON.stringify(draftConfig, null, 2);
+        if (jsonEditor) jsonEditor.value = JSON.stringify(draftConfig, null, 2);
     }
 
     function updateColorFieldPreview(input) {
@@ -90,6 +95,7 @@ export function initAnnotationStyleSettings(config) {
     function updatePreview(row, cls) {
         const style = getResolvedClassStyle(cls);
         const preview = row.querySelector('.style-preview-outline');
+        if (!preview) return;
         preview.style.border = `${style.strokeWidth}px solid ${style.strokeColor}`;
         preview.style.background = style.renderMode === 'outline'
             ? 'transparent'
@@ -101,16 +107,18 @@ export function initAnnotationStyleSettings(config) {
 
     function refreshResolvedStyles() {
         setCurrentStyleConfig(draftConfig, classes);
-        classRows.querySelectorAll('tr').forEach(row => updatePreview(row, row.dataset.className));
+        if (classRows) {
+            classRows.querySelectorAll('tr').forEach(row => updatePreview(row, row.dataset.className));
+        }
     }
 
     function syncGlobalInputs() {
-        defaultRenderMode.value = draftConfig.defaults.render_mode;
-        defaultStrokeWidth.value = draftConfig.defaults.stroke_width;
-        defaultFillOpacity.value = draftConfig.defaults.fill_opacity;
-        selectedStrokeWidth.value = draftConfig.selected.stroke_width;
-        selectedStrokeColor.value = draftConfig.selected.stroke_color;
-        preannotationFillOpacity.value = draftConfig.preannotation.fill_opacity;
+        if (defaultRenderMode) defaultRenderMode.value = draftConfig.defaults.render_mode;
+        if (defaultStrokeWidth) defaultStrokeWidth.value = draftConfig.defaults.stroke_width;
+        if (defaultFillOpacity) defaultFillOpacity.value = draftConfig.defaults.fill_opacity;
+        if (selectedStrokeWidth) selectedStrokeWidth.value = draftConfig.selected.stroke_width;
+        if (selectedStrokeColor) selectedStrokeColor.value = draftConfig.selected.stroke_color;
+        if (preannotationFillOpacity) preannotationFillOpacity.value = draftConfig.preannotation.fill_opacity;
     }
 
     function attachRowHandlers(row, cls) {
@@ -149,6 +157,7 @@ export function initAnnotationStyleSettings(config) {
     }
 
     function renderClassRows() {
+        if (!classRows) return;
         classRows.innerHTML = '';
         classes.forEach(cls => {
             const style = getResolvedClassStyle(cls);
@@ -192,7 +201,7 @@ export function initAnnotationStyleSettings(config) {
     function renderVisualEditor() {
         refreshResolvedStyles();
         syncGlobalInputs();
-        updateColorFieldPreview(selectedStrokeColor);
+        if (selectedStrokeColor) updateColorFieldPreview(selectedStrokeColor);
         renderClassRows();
         updateJsonEditor();
     }
@@ -210,67 +219,73 @@ export function initAnnotationStyleSettings(config) {
     }
 
     function switchTab(tabName) {
-        if (tabName === 'visual' && !parseJsonEditor()) return;
+        if (tabPanels.some(panel => panel.classList.contains('active') &&
+            panel.dataset.stylePanel === tabName)) return;
+        const leavingJson = tabPanels.some(panel =>
+            panel.classList.contains('active') && panel.dataset.stylePanel === 'json');
+        if (leavingJson && tabName !== 'json' && !parseJsonEditor()) return;
         if (tabName === 'json') updateJsonEditor();
         tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.styleTab === tabName));
         tabPanels.forEach(panel => panel.classList.toggle('active', panel.dataset.stylePanel === tabName));
     }
 
-    defaultRenderMode.addEventListener('change', e => {
-        draftConfig.defaults.render_mode = e.target.value;
-        renderVisualEditor();
-    });
-    defaultStrokeWidth.addEventListener('input', e => {
-        draftConfig.defaults.stroke_width = Number(e.target.value);
-        renderVisualEditor();
-    });
-    defaultFillOpacity.addEventListener('input', e => {
-        draftConfig.defaults.fill_opacity = Number(e.target.value);
-        renderVisualEditor();
-    });
-    selectedStrokeWidth.addEventListener('input', e => {
-        draftConfig.selected.stroke_width = Number(e.target.value);
-        updateJsonEditor();
-    });
-    selectedStrokeColor.addEventListener('input', e => {
-        draftConfig.selected.stroke_color = e.target.value;
-        updateColorFieldPreview(e.target);
-        updateJsonEditor();
-    });
-    preannotationFillOpacity.addEventListener('input', e => {
-        draftConfig.preannotation.fill_opacity = Number(e.target.value);
-        updateJsonEditor();
-    });
+    if (defaultRenderMode) {
+        defaultRenderMode.addEventListener('change', e => {
+            draftConfig.defaults.render_mode = e.target.value;
+            renderVisualEditor();
+        });
+    }
+    if (defaultStrokeWidth) {
+        defaultStrokeWidth.addEventListener('input', e => {
+            draftConfig.defaults.stroke_width = Number(e.target.value);
+            renderVisualEditor();
+        });
+    }
+    if (defaultFillOpacity) {
+        defaultFillOpacity.addEventListener('input', e => {
+            draftConfig.defaults.fill_opacity = Number(e.target.value);
+            renderVisualEditor();
+        });
+    }
+    if (selectedStrokeWidth) {
+        selectedStrokeWidth.addEventListener('input', e => {
+            draftConfig.selected.stroke_width = Number(e.target.value);
+            updateJsonEditor();
+        });
+    }
+    if (selectedStrokeColor) {
+        selectedStrokeColor.addEventListener('input', e => {
+            draftConfig.selected.stroke_color = e.target.value;
+            updateColorFieldPreview(e.target);
+            updateJsonEditor();
+        });
+    }
+    if (preannotationFillOpacity) {
+        preannotationFillOpacity.addEventListener('input', e => {
+            draftConfig.preannotation.fill_opacity = Number(e.target.value);
+            updateJsonEditor();
+        });
+    }
 
     tabButtons.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.styleTab)));
 
-    resetBtn.addEventListener('click', () => {
-        draftConfig = normalizeStyleConfig(getDefaultStyleConfig(), classes);
-        renderVisualEditor();
-    });
-
-    openBtn.addEventListener('click', () => {
-        draftConfig = normalizeStyleConfig(config.annotationStyleConfig || getCurrentStyleConfig(), classes);
-        renderVisualEditor();
-        setError('');
-        switchTab('visual');
-        updateColorFieldPreview(selectedStrokeColor);
-        if (autoSaveSwitch) {
-            autoSaveSwitch.checked = isAutoSaveEnabled;
-        }
-        modal.style.display = 'flex';
-        if (advanceAfterSaveSwitch) advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;
-    });
-
-    function closeModal() {
-        modal.style.display = 'none';
-        setError('');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            draftConfig = normalizeStyleConfig(getDefaultStyleConfig(), classes);
+            renderVisualEditor();
+        });
     }
 
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', e => {
-        if (e.target === modal) closeModal();
-    });
+    // Legacy: if the hidden openBtn still exists, keep it working for backward compat
+    const openBtn = document.getElementById('annotation-style-settings-btn');
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            draftConfig = normalizeStyleConfig(config.annotationStyleConfig || getCurrentStyleConfig(), classes);
+            renderVisualEditor();
+            setError('');
+            switchTab('visual');
+        });
+    }
 
     saveBtn.addEventListener('click', async () => {
         const jsonPanelVisible = document.querySelector('.style-tab-panel.active')?.dataset.stylePanel === 'json';
@@ -291,11 +306,16 @@ export function initAnnotationStyleSettings(config) {
             config.annotationStyleConfig = clone(draftConfig);
             setCurrentStyleConfig(draftConfig, classes);
             drawImage();
-            closeModal();
+            // Show brief success feedback in the save button
+            saveBtn.textContent = '✓ Saved';
+            setTimeout(() => { saveBtn.textContent = 'Save Settings'; }, 2000);
         } catch (error) {
             setError(error.message);
         } finally {
             saveBtn.disabled = false;
         }
     });
+
+    // Initialize the visual editor immediately since settings are always visible in the inline panel
+    renderVisualEditor();
 }

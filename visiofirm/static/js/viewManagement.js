@@ -14,12 +14,6 @@ export function switchToAnnotationView(imgElement = null) {
     annotationView.classList.remove('hide');
     annotationView.classList.add('show');
 
-    document.querySelectorAll('#annotation-view .lazy-load').forEach(img => {
-        if (!img.src) {
-            img.src = img.dataset.src;
-        }
-    });
-
     setTimeout(() => {
         annotationView.classList.add('show');
     }, 10);
@@ -35,6 +29,7 @@ export function switchToAnnotationView(imgElement = null) {
 
 export function switchToGridView() {
     console.log('Switching to grid view');
+    document.dispatchEvent(new CustomEvent('project-tab-change', { detail: 'images' }));
     const gridView = document.getElementById('grid-view');
     const annotationView = document.getElementById('annotation-view');
 
@@ -64,10 +59,17 @@ export function initializeGridView() {
     initializeImageList();
 }
 
-const sortTypes = ['name-asc', 'name-desc', 'status-asc', 'status-desc', 'status-pre', 'date-asc', 'date-desc'];
-const filterTypes = ['all', 'annotated', 'preannotated', 'unannotated'];
+const sortTypes = ['name-asc', 'name-desc', 'status-asc', 'status-desc', 'status-pre', 'date-asc', 'date-desc', 'anno-desc', 'anno-asc', 'class-desc', 'class-asc'];
+const filterTypes = ['all', 'annotated', 'preannotated', 'unannotated', 'anno-0', 'anno-1-5', 'anno-gt5', 'class-1', 'class-multi', 'custom-range'];
 let activeSort = 'name-asc';
 let activeFilter = 'all';
+let activeClassFilter = 'all';
+export let customRange = {
+    annoMin: null,
+    annoMax: null,
+    classMin: null,
+    classMax: null
+};
 let storageKey;
 let excludedImageIndex = 0;
 
@@ -87,6 +89,7 @@ export function initializeImageList() {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
         if (sortTypes.includes(saved.sort)) activeSort = saved.sort;
         if (filterTypes.includes(saved.filter)) activeFilter = saved.filter;
+        if (saved.customRange) customRange = { ...customRange, ...saved.customRange };
     } catch (error) {
         console.warn('Cannot restore image list preferences', error);
     }
@@ -102,6 +105,26 @@ export function refreshImageList() {
         : ['annotated', 'preannotated', 'unannotated'];
     const compare = (a, b) => {
         if (activeSort === 'name-desc') return -nameCompare(a, b);
+        if (activeSort === 'anno-desc') {
+            const countA = parseInt(a.dataset.annotationCount || '0', 10);
+            const countB = parseInt(b.dataset.annotationCount || '0', 10);
+            return (countB - countA) || nameCompare(a, b);
+        }
+        if (activeSort === 'anno-asc') {
+            const countA = parseInt(a.dataset.annotationCount || '0', 10);
+            const countB = parseInt(b.dataset.annotationCount || '0', 10);
+            return (countA - countB) || nameCompare(a, b);
+        }
+        if (activeSort === 'class-desc') {
+            const countA = parseInt(a.dataset.classCount || '0', 10);
+            const countB = parseInt(b.dataset.classCount || '0', 10);
+            return (countB - countA) || nameCompare(a, b);
+        }
+        if (activeSort === 'class-asc') {
+            const countA = parseInt(a.dataset.classCount || '0', 10);
+            const countB = parseInt(b.dataset.classCount || '0', 10);
+            return (countA - countB) || nameCompare(a, b);
+        }
         if (activeSort.startsWith('status-')) {
             return statusOrder.indexOf(imageStatus(a)) - statusOrder.indexOf(imageStatus(b)) || nameCompare(a, b);
         }
@@ -120,7 +143,36 @@ export function refreshImageList() {
         const rows = [...original].sort(compare);
         const orderChanged = rows.some((row, index) => row !== original[index]);
         rows.forEach(row => {
-            row.hidden = activeFilter !== 'all' && imageStatus(row) !== activeFilter;
+            const annoCount = parseInt(row.dataset.annotationCount || '0', 10);
+            const classCount = parseInt(row.dataset.classCount || '0', 10);
+            let matchesFilter = true;
+            if (activeFilter === 'all') {
+                matchesFilter = true;
+            } else if (activeFilter === 'annotated') {
+                matchesFilter = row.dataset.annotated === 'true';
+            } else if (activeFilter === 'preannotated') {
+                matchesFilter = row.dataset.preannotated === 'true';
+            } else if (activeFilter === 'unannotated') {
+                matchesFilter = row.dataset.annotated !== 'true' && row.dataset.preannotated !== 'true';
+            } else if (activeFilter === 'anno-0') {
+                matchesFilter = annoCount === 0;
+            } else if (activeFilter === 'anno-1-5') {
+                matchesFilter = annoCount >= 1 && annoCount <= 5;
+            } else if (activeFilter === 'anno-gt5') {
+                matchesFilter = annoCount > 5;
+            } else if (activeFilter === 'class-1') {
+                matchesFilter = classCount === 1;
+            } else if (activeFilter === 'class-multi') {
+                matchesFilter = classCount >= 2;
+            } else if (activeFilter === 'custom-range') {
+                if (customRange.annoMin !== null && annoCount < customRange.annoMin) matchesFilter = false;
+                if (customRange.annoMax !== null && annoCount > customRange.annoMax) matchesFilter = false;
+                if (customRange.classMin !== null && classCount < customRange.classMin) matchesFilter = false;
+                if (customRange.classMax !== null && classCount > customRange.classMax) matchesFilter = false;
+            }
+            const rowClasses = (row.dataset.classes || '').split(' ').filter(Boolean);
+            const matchesClass = activeClassFilter === 'all' || rowClasses.includes(activeClassFilter);
+            row.hidden = !(matchesFilter && matchesClass);
             const checkbox = row.querySelector('.image-checkbox');
             if (row.hidden && checkbox) checkbox.checked = false;
             if (orderChanged) row.parentElement.appendChild(row);
@@ -143,9 +195,20 @@ export function refreshImageList() {
         if (!button) return;
         const isFilter = id.startsWith('filter');
         const item = document.querySelector(isFilter ? `[data-filter="${activeFilter}"]` : `[data-sort="${activeSort}"]`);
-        button.title = `${isFilter ? 'Filter' : 'Sort'}: ${item?.textContent.trim() || ''}`;
+        let labelText = item?.textContent.trim() || '';
+        if (isFilter && activeFilter === 'custom-range') {
+            const parts = [];
+            if (customRange.annoMin !== null || customRange.annoMax !== null) {
+                parts.push(`Anno: ${customRange.annoMin ?? 0}–${customRange.annoMax ?? '∞'}`);
+            }
+            if (customRange.classMin !== null || customRange.classMax !== null) {
+                parts.push(`Class: ${customRange.classMin ?? 0}–${customRange.classMax ?? '∞'}`);
+            }
+            labelText = parts.join(', ') || 'Custom Range';
+        }
+        button.title = `${isFilter ? 'Filter' : 'Sort'}: ${labelText}`;
         const label = button.querySelector('.image-list-control-label');
-        if (label && isFilter) label.textContent = activeFilter === 'all' ? 'All Images' : item.textContent.trim();
+        if (label && isFilter) label.textContent = activeFilter === 'all' ? 'All Images' : labelText;
         button.classList.toggle('active', !isFilter || activeFilter !== 'all');
     });
     document.querySelectorAll('.image-list-empty').forEach(el => { el.hidden = visible.length !== 0; });
@@ -155,11 +218,21 @@ export function refreshImageList() {
         const button = document.getElementById(id);
         if (button) button.disabled = visible.length === 0;
     });
+    const jumpInput = document.getElementById('image-jump-input');
+    const jumpTotal = document.getElementById('image-jump-total');
+    if (jumpTotal) jumpTotal.textContent = visible.length;
+    if (jumpInput) {
+        jumpInput.max = visible.length;
+        jumpInput.disabled = visible.length === 0;
+        if (currentImageIndex >= 0) {
+            jumpInput.value = currentImageIndex + 1;
+        }
+    }
 }
 
 function savePreferences() {
     try {
-        localStorage.setItem(storageKey, JSON.stringify({ sort: activeSort, filter: activeFilter }));
+        localStorage.setItem(storageKey, JSON.stringify({ sort: activeSort, filter: activeFilter, customRange }));
     } catch (error) {
         console.warn('Cannot save image list preferences', error);
     }
@@ -172,10 +245,21 @@ export function sortImages(sortType) {
     savePreferences();
 }
 
+export function setCustomFilterRange(range) {
+    customRange = { ...customRange, ...range };
+    activeFilter = 'custom-range';
+    savePreferences();
+}
+
 export function filterImages(filterType) {
     if (!filterTypes.includes(filterType)) return;
     activeFilter = filterType;
     savePreferences();
+}
+
+export function filterByClass(className) {
+    activeClassFilter = className || 'all';
+    refreshImageList();
 }
 
 export function navigateImage(direction) {

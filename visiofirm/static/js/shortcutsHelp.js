@@ -3,118 +3,124 @@ import { setupType } from './globals.js';
 export function updateShortcutsNotice() {
     const shortcutsList = document.querySelector('.shortcuts-list');
     const shortcutsLegend = document.querySelector('.shortcuts-legend');
+    if (!shortcutsList) return;
     shortcutsList.innerHTML = '';
-    shortcutsLegend.innerHTML = '';
-
-    const legendItems = [
-        { key: 'ctrl', icon: 'fas fa-cogs', desc: 'Ctrl' },
-        { key: 'shift', icon: 'fas fa-arrow-up', desc: 'Shift' },
-        { key: 'alt', icon: 'fas fa-exchange-alt', desc: 'Alt' },
-        { key: 'mouse-left', icon: 'fas fa-mouse-pointer', desc: 'Left Click' },
-        { key: 'mouse-right', icon: 'fas fa-hand-pointer', desc: 'Right Click' },
-        { key: 'wheel', icon: 'fas fa-scroll', desc: 'Mouse Wheel' }
-    ];
-
-    const legendHeader = document.createElement('h4');
-    legendHeader.textContent = 'Key Icons';
-    shortcutsLegend.appendChild(legendHeader);
-
-    legendItems.forEach(item => {
-        const legendItem = document.createElement('div');
-        legendItem.className = 'legend-item';
-
-        const keySpan = document.createElement('span');
-        keySpan.className = `legend-key ${item.key}`;
-        keySpan.innerHTML = `<i class="${item.icon}"></i>`;
-
-        const descSpan = document.createElement('span');
-        descSpan.className = 'legend-desc';
-        descSpan.textContent = item.desc;
-
-        legendItem.appendChild(keySpan);
-        legendItem.appendChild(descSpan);
-        shortcutsLegend.appendChild(legendItem);
-    });
+    
+    // Hide old legend block if present
+    if (shortcutsLegend) {
+        shortcutsLegend.innerHTML = '';
+        shortcutsLegend.style.display = 'none';
+    }
 
     const shortcuts = [
-        { keys: ['shift', 'mouse-left'], desc: 'Pan', icon: 'fas fa-arrows-alt' },
-        { keys: ['wheel'], desc: 'Zoom', icon: 'fas fa-search-plus' },
-        { keys: ['alt', 'wheel'], desc: 'Fine Zoom', icon: 'fas fa-search-plus' },
-        { keys: ['ctrl', 'z'], desc: 'Undo', icon: 'fas fa-undo' },
-        { keys: ['delete'], desc: 'Remove Selected', icon: 'fas fa-trash' },
-        { keys: ['alt', 'd'], desc: 'Duplicate', icon: 'fas fa-copy' },
-        { keys: ['s'], desc: 'Approve / Save', icon: 'fas fa-save' },
-        { keys: ['enter'], desc: 'Approve / Save', icon: 'fas fa-check' },
-        { keys: ['v'], desc: 'Select Labels', icon: 'fas fa-mouse-pointer' },
-        { keys: ['arrow-left'], desc: 'Previous Image', icon: 'fas fa-arrow-left' },
-        { keys: ['arrow-right'], desc: 'Next Image', icon: 'fas fa-arrow-right' },
-        { keys: ['ctrl', 'arrow-up'], desc: 'Nudge Up', icon: 'fas fa-arrow-up' },
-        { keys: ['ctrl', 'arrow-down'], desc: 'Nudge Down', icon: 'fas fa-arrow-down' },
-        { keys: ['ctrl', 'arrow-left'], desc: 'Nudge Left', icon: 'fas fa-arrow-left' },
-        { keys: ['ctrl', 'arrow-right'], desc: 'Nudge Right', icon: 'fas fa-arrow-right' },
-        { keys: ['mouse-right', 'mouse-left'], desc: 'Edit', icon: 'fas fa-edit' },
-        { keys: ['ctrl', 'a'], desc: 'Deselect', icon: 'fas fa-times' },
-        { keys: ['ctrl', 'c'], desc: 'Copy Annotations', icon: 'fas fa-copy' },
-        { keys: ['ctrl', 'v'], desc: 'Paste Annotations', icon: 'fas fa-paste' },
-        { keys: ['hold "R"', 'mouse-left'], desc: 'Rotate bounding box', icon: 'fa-solid fa-rotate-right' }
+        // Mode Shortcuts
+        { keys: ['R'], desc: 'Draw Rectangle (Box)', icon: 'fa-solid fa-vector-square' },
+        ...(setupType === 'Segmentation' ? [{ keys: ['P'], desc: 'Draw Polygon', icon: 'fa-solid fa-draw-polygon' }] : []),
+        { keys: ['M'], desc: 'Magic SAM Tool', icon: 'fa-solid fa-wand-magic-sparkles' },
+        { keys: ['V'], desc: 'Select / Marquee Lasso', icon: 'fa-solid fa-arrow-pointer' },
+        { keys: ['Shift', 'Drag'], desc: 'Add to Selection (+)', icon: 'fa-solid fa-plus' },
+        { keys: ['Alt', 'Drag'], desc: 'Subtract from Selection (-)', icon: 'fa-solid fa-minus' },
+        { keys: ['Ctrl', 'Click'], desc: 'Toggle Selection (XOR)', icon: 'fa-solid fa-arrows-spin' },
+        { keys: ['H', 'Space'], desc: 'Pan Canvas', icon: 'fa-solid fa-hand', isOr: true },
+
+        // Actions & History
+        { keys: ['S', 'Enter'], desc: 'Approve & Save', icon: 'fa-solid fa-check', isOr: true },
+        { keys: ['Ctrl', 'Z'], desc: 'Undo Action', icon: 'fa-solid fa-rotate-left' },
+        { keys: ['Ctrl', 'D'], desc: 'Duplicate Annotation', icon: 'fa-solid fa-copy' },
+        { keys: ['Del'], desc: 'Delete Selected', icon: 'fa-solid fa-trash' },
+        { keys: ['1 - 9'], desc: 'Quick Class Select', icon: 'fa-solid fa-tag' },
+
+        // Navigation & View
+        { keys: ['A', 'D'], desc: 'Previous / Next Image', icon: 'fa-solid fa-arrow-right-arrow-left', isOr: true },
+        { keys: ['Scroll'], desc: 'Zoom Canvas', icon: 'fa-solid fa-magnifying-glass' },
+        { keys: ['Alt', 'Scroll'], desc: 'Fine Zoom', icon: 'fa-solid fa-magnifying-glass-plus' },
+        { keys: ['0'], desc: 'Reset View (100%)', icon: 'fa-solid fa-expand' },
+        { keys: ['Ctrl', 'C'], desc: 'Copy Annotations', icon: 'fa-solid fa-clone' },
+        { keys: ['Ctrl', 'V'], desc: 'Paste Annotations', icon: 'fa-solid fa-paste' },
+        { keys: ['Hold R', 'Drag'], desc: 'Rotate OBB Box', icon: 'fa-solid fa-rotate-right' }
     ];
 
-    if (setupType === "Bounding Box" || setupType === "Oriented Bounding Box") {
-        shortcuts.push({ keys: ['ctrl', 'shift', 'mouse-left'], desc: 'Center Rect', icon: 'far fa-square' });
-        if (setupType === "Oriented Bounding Box") {
-            shortcuts.push({ keys: ['alt', 'mouse-left'], desc: 'Orient Bounding Box', icon: 'fas fa-sync' });
-        }
-    } else if (setupType === "Segmentation") {
-        shortcuts.push({ keys: ['ctrl', 'mouse-left'], desc: 'Add Point (Select)', icon: 'fas fa-plus' });
-        shortcuts.push({ keys: ['escape'], desc: 'Close Polygon', icon: 'fas fa-check' });
+    if (setupType === 'Segmentation') {
+        shortcuts.push({ keys: ['Esc'], desc: 'Close Polygon', icon: 'fa-solid fa-check-double' });
     }
 
     shortcuts.forEach(shortcut => {
-        const item = document.createElement('div');
-        item.className = 'shortcut-item';
-
-        const keysSpan = document.createElement('span');
-        shortcut.keys.forEach((key, index) => {
-            const keySpan = document.createElement('span');
-            keySpan.className = `shortcut-key ${key.toLowerCase().replace(' ', '-')}`;
-            if (key === 'ctrl') keySpan.innerHTML = '<i class="fas fa-cogs"></i>';
-            else if (key === 'shift') keySpan.innerHTML = '<i class="fas fa-arrow-up"></i>';
-            else if (key === 'alt') keySpan.innerHTML = '<i class="fas fa-exchange-alt"></i>';
-            else if (key === 'mouse-left') keySpan.innerHTML = '<i class="fas fa-mouse-pointer"></i>';
-            else if (key === 'mouse-right') keySpan.innerHTML = '<i class="fas fa-hand-pointer"></i>';
-            else if (key === 'wheel') keySpan.innerHTML = '<i class="fas fa-scroll"></i>';
-            else if (key.startsWith('arrow-')) keySpan.innerHTML = `<i class="fas fa-arrow-${key.split('-')[1]}"></i>`;
-            else keySpan.textContent = key.toUpperCase();
-            keysSpan.appendChild(keySpan);
-            if (index < shortcut.keys.length - 1) keysSpan.appendChild(document.createTextNode(' + '));
-        });
+        const row = document.createElement('div');
+        row.className = 'shortcut-row';
 
         const descSpan = document.createElement('span');
         descSpan.className = 'shortcut-desc';
-        descSpan.innerHTML = `<i class="${shortcut.icon}"></i> ${shortcut.desc}`;
+        descSpan.innerHTML = `<i class="${shortcut.icon}"></i> <span>${shortcut.desc}</span>`;
 
-        item.appendChild(keysSpan);
-        item.appendChild(descSpan);
-        shortcutsList.appendChild(item);
+        const keysSpan = document.createElement('span');
+        keysSpan.className = 'shortcut-keys';
+
+        shortcut.keys.forEach((key, index) => {
+            const kbd = document.createElement('kbd');
+            kbd.className = 'kbd-badge';
+            kbd.textContent = key;
+            keysSpan.appendChild(kbd);
+
+            if (index < shortcut.keys.length - 1) {
+                const sep = document.createElement('span');
+                sep.className = 'kbd-sep';
+                sep.textContent = shortcut.isOr ? ' / ' : ' + ';
+                keysSpan.appendChild(sep);
+            }
+        });
+
+        row.appendChild(descSpan);
+        row.appendChild(keysSpan);
+        shortcutsList.appendChild(row);
     });
 }
 
 export function initShortcutsSidebar() {
     const sidebar = document.querySelector('.shortcuts-sidebar');
     if (sidebar) {
-        // Initially collapse the sidebar
         sidebar.classList.add('collapsed');
     } else {
-        console.warn('Shortcuts sidebar element not found');
         return;
     }
 
     const toggle = document.querySelector('.shortcuts-toggle');
-    if (toggle) {
-        toggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
+    const closeBtn = sidebar.querySelector('.shortcuts-close-btn');
+
+    const close = () => {
+        sidebar.classList.add('collapsed');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    };
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            close();
         });
-    } else {
-        console.warn('Shortcuts toggle element not found');
+    }
+
+    if (toggle) {
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            if (isCollapsed) {
+                sidebar.classList.remove('collapsed');
+                toggle.setAttribute('aria-expanded', 'true');
+            } else {
+                close();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                close();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !sidebar.classList.contains('collapsed')) {
+                close();
+                toggle.focus();
+            }
+        });
     }
 }

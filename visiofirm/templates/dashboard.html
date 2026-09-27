@@ -2,42 +2,120 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="dashboard">
-    <div class="header">
-        <h2>Projects</h2>
-        <button class="create-btn">Create New Project</button>
+    <div class="dashboard-toolbar">
+        <div class="toolbar-left">
+            <h2 class="dashboard-title">Projects</h2>
+            <span class="projects-count-pill">{{ projects|length }}</span>
+        </div>
+        <div class="toolbar-right">
+            <div class="dashboard-search-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="project-search-input" placeholder="Search projects..." class="dashboard-search-input">
+            </div>
+            <button class="create-btn">
+                <i class="fa-solid fa-plus"></i>
+                <span>Create New Project</span>
+            </button>
+        </div>
     </div>
-    <div class="projects-grid">
+
+    {% if projects|length == 0 %}
+    <div class="projects-empty-state">
+        <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+        <h3>No projects yet</h3>
+        <p>Create your first computer vision project to start annotating images and videos.</p>
+        <button class="create-btn empty-create-btn">
+            <i class="fa-solid fa-plus"></i>
+            <span>Create First Project</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="projects-grid" id="projects-grid">
         {% for project in projects %}
-            <!-- <div class="project-card" data-project="{{ project.name }}" onclick="window.location.href='/annotation/{{ project.name }}'"> -->
+            {% set stype = project.setup_type or 'Bounding Box' %}
+            {% set stype_lower = stype|lower %}
+            {% if 'oriented' in stype_lower %}
+                {% set badge_class = 'badge-obb' %}
+                {% set badge_short = 'OBB' %}
+            {% elif 'seg' in stype_lower %}
+                {% set badge_class = 'badge-seg' %}
+                {% set badge_short = 'SEG' %}
+            {% elif 'classif' in stype_lower %}
+                {% set badge_class = 'badge-classif' %}
+                {% set badge_short = 'CLS' %}
+            {% elif 'video' in stype_lower %}
+                {% set badge_class = 'badge-video' %}
+                {% set badge_short = 'VID' %}
+            {% else %}
+                {% set badge_class = 'badge-bb' %}
+                {% set badge_short = 'BBOX' %}
+            {% endif %}
+
             <div class="project-card" data-project="{{ project.name }}">
+                <!-- Badge for Setup Type -->
+                <div class="project-badge {{ badge_class }}" title="{{ stype }}">
+                    <span>{{ badge_short }}</span>
+                </div>
+
+                <!-- Media Preview -->
                 <div class="project-images">
                     {% if project.setup_type and 'Video' in project.setup_type %}
-                        {% if project.videos %}
-                            <video src="{{ project.videos[0] }}" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover; object-position: center;"></video>
+                        {% if project.videos and project.videos|length > 0 %}
+                            <video src="{{ project.videos[0] }}" autoplay loop muted playsinline class="card-video"></video>
+                        {% else %}
+                            <div class="media-placeholder"><i class="fa-solid fa-video"></i></div>
                         {% endif %}
                     {% else %}
-                        {% for img in project.images %}
-                            <img src="{{ img }}" alt="Project image">
-                        {% endfor %}
-                    {% endif %}                </div>
-                <div class="project-info">
-                    <span class="project-name">{{ project.name }}</span>
-                    <button type="button" class="menu-btn" aria-expanded="false" aria-label="Menu for {{ project.name }}">Menu</button>
-                    <div class="menu-dropdown" style="display: none;">
-                        <button class="overview-btn" data-project="{{ project.name }}">Overview</button>
-                        <button class="import-btn" data-project="{{ project.name }}">Add Images</button>
-                        <button class="add-classes-btn" data-project="{{ project.name }}">Add Classes</button>
-                        {% if project.setup_type and 'Video' not in project.setup_type %}
-                        <button class="duplicates-btn" data-project="{{ project.name }}">Clean duplicates</button>
+                        {% if project.images and project.images|length > 0 %}
+                            {% for img in project.images[:4] %}
+                                <img src="{{ img }}" alt="{{ project.name }}" loading="lazy">
+                            {% endfor %}
+                        {% else %}
+                            <div class="media-placeholder"><i class="fa-regular fa-image"></i></div>
                         {% endif %}
-                        <button class="delete-btn" data-project="{{ project.name }}">Delete</button>
+                    {% endif %}
+                </div>
+
+                <!-- Hover Overlay (Ultralytics HUB style) -->
+                <div class="project-card-overlay">
+                    <div class="overlay-meta">
+                        <h4 class="project-name" title="{{ project.name }}">{{ project.name }}</h4>
+                        <div class="project-details">
+                            <span class="detail-item"><i class="fa-regular fa-images"></i> {{ project.image_count or (project.images|length if project.images else 0) }} items</span>
+                            <span class="detail-dot">•</span>
+                            <span class="detail-item detail-type">{{ stype }}</span>
+                        </div>
+                    </div>
+
+                    <div class="overlay-actions">
+                        <button type="button" class="card-open-btn" title="Open Annotation Canvas">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>Open</span>
+                        </button>
+                        
+                        <div class="menu-container">
+                            <button type="button" class="menu-btn" aria-expanded="false" aria-label="Menu for {{ project.name }}" title="More actions">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                            </button>
+                            <div class="menu-dropdown" style="display: none;">
+                                <button class="overview-btn" data-project="{{ project.name }}"><i class="fa-solid fa-chart-pie"></i> Overview</button>
+                                <button class="import-btn" data-project="{{ project.name }}"><i class="fa-solid fa-upload"></i> Add Images</button>
+                                <button class="add-classes-btn" data-project="{{ project.name }}"><i class="fa-solid fa-tags"></i> Add Classes</button>
+                                <button class="duplicate-btn" data-project="{{ project.name }}"><i class="fa-solid fa-copy"></i> Duplicate</button>
+                                {% if project.setup_type and 'Video' not in project.setup_type %}
+                                <button class="duplicates-btn" data-project="{{ project.name }}"><i class="fa-solid fa-wand-magic-sparkles"></i> Clean duplicates</button>
+                                {% endif %}
+                                <div class="menu-divider"></div>
+                                <button class="delete-btn" data-project="{{ project.name }}"><i class="fa-solid fa-trash"></i> Delete</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         {% endfor %}
     </div>
 </div>
-
 <div class="modal">
     <div class="modal-content">
         <button class="close-btn">Г—</button>
@@ -183,15 +261,112 @@
     </div>
 </div>
 
-<div class="modal" id="overview-modal">
-    <div class="modal-content">
-        <button class="close-btn overview-close-btn">Г—</button>
-        <h2 class="modal-title">Project Overview: <span id="overview-project-name"></span></h2>
-        <div id="total-images">Total Images: <span id="total-images-count"></span></div>
-        <div id="overview-charts">
-            <div id="image-stats"></div>
-            <div id="class-distribution"></div>
-            <div id="annotations-per-image"></div>
+<div class="modal" id="duplicate-modal" style="display: none;">
+    <div class="modal-content duplicate-modal-content">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-copy"></i> Duplicate Project</h2>
+            <button class="close-btn" id="cancel-duplicate">×</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-instruction">Create a clone of <strong id="duplicate-source-name" class="highlight-text"></strong> with all images and configurations.</p>
+            <div class="form-group" style="margin-top: 14px;">
+                <label for="duplicate-new-name">New Project Name</label>
+                <input type="text" id="duplicate-new-name" class="modal-text-input" placeholder="e.g. MyProject_copy" autocomplete="off" required>
+            </div>
+            <div class="form-group checkbox-group" style="margin-top: 12px;">
+                <label class="custom-checkbox-label">
+                    <input type="checkbox" id="duplicate-include-annotations" checked>
+                    <span>Copy existing ground-truth annotations</span>
+                </label>
+            </div>
+            <div id="duplicate-error-msg" class="modal-error-msg" style="display: none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="cancel-btn" id="cancel-duplicate-footer">Cancel</button>
+            <button type="button" class="action-btn-primary" id="confirm-duplicate">
+                <i class="fa-solid fa-clone"></i> Duplicate Project
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="overview-modal" style="display: none;">
+    <div class="modal-content overview-modal-content">
+        <div class="overview-modal-header">
+            <div class="overview-header-title-row">
+                <div class="overview-title-group">
+                    <span class="overview-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                    <h2 class="modal-title">Project Overview: <span id="overview-project-name"></span></h2>
+                    <span id="overview-setup-badge" class="project-badge badge-bb">BBOX</span>
+                </div>
+                <button type="button" class="close-btn overview-close-btn" title="Close (Esc)">×</button>
+            </div>
+        </div>
+
+        <div class="overview-modal-body">
+            <!-- 4 KPI Metrics Row -->
+            <div class="overview-kpi-grid">
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-images"><i class="fa-regular fa-images"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Total Images</span>
+                        <span class="kpi-value" id="kpi-total-images">0</span>
+                    </div>
+                </div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-annotated"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Annotated</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-value" id="kpi-annotated-images">0</span>
+                            <span class="kpi-badge" id="kpi-annotated-percent">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-objects"><i class="fa-solid fa-shapes"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Total Objects</span>
+                        <span class="kpi-value" id="kpi-total-objects">0</span>
+                    </div>
+                </div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-classes"><i class="fa-solid fa-tags"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Classes</span>
+                        <span class="kpi-value" id="kpi-total-classes">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="overview-charts-grid">
+                <div class="overview-chart-box">
+                    <div class="chart-header">
+                        <span><i class="fa-solid fa-chart-pie"></i> Annotation Progress</span>
+                    </div>
+                    <div id="image-stats" class="dark-chart-container"></div>
+                </div>
+                <div class="overview-chart-box">
+                    <div class="chart-header">
+                        <span><i class="fa-solid fa-chart-column"></i> Class Distribution</span>
+                    </div>
+                    <div id="class-distribution" class="dark-chart-container"></div>
+                </div>
+            </div>
+
+            <div id="annotations-per-image-container" class="overview-chart-box" style="display: none; margin-top: 14px;">
+                <div class="chart-header">
+                    <span><i class="fa-solid fa-chart-area"></i> Annotations per Image</span>
+                </div>
+                <div id="annotations-per-image" class="dark-chart-container"></div>
+            </div>
+
+            <!-- Class Tags / Details Section -->
+            <div class="overview-classes-section">
+                <div class="section-title"><i class="fa-solid fa-tag"></i> Classes Breakdown</div>
+                <div id="overview-classes-list" class="overview-classes-tags"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -215,7 +390,6 @@
     </div>
 </div>
 
-<link rel="stylesheet" href="/static/css/setup.css">
 <!-- <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script> -->
 <script type="module" src="/static/js/jslib/plotly-2.35.2.min.js"></script>
 
@@ -378,7 +552,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const modal = document.querySelector('.modal');
-        const createBtn = document.querySelector('.header .create-btn');
+        const createBtns = document.querySelectorAll('.dashboard-toolbar .create-btn, .empty-create-btn');
         const closeBtn = document.querySelector('.close-btn');
         const projectForm = document.getElementById('project-form');
         const dropZone = document.getElementById('drop-zone');
@@ -544,24 +718,26 @@
             false
         );
 
-        createBtn.addEventListener('click', async () => {
-            modal.style.display = 'flex';
-            createProjectBtn.disabled = false;
-            isDataImported = false;
-            document.getElementById('summary-tab').classList.add('disabled');
-            try {
-                const response = await fetch('/get_unique_project_name');
-                const result = await response.json();
-                if (result.success) {
-                    projectNameInput.value = result.project_name;
-                } else {
-                    console.error('Failed to fetch unique project name:', result.error);
+        createBtns.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                modal.style.display = 'flex';
+                createProjectBtn.disabled = false;
+                isDataImported = false;
+                document.getElementById('summary-tab').classList.add('disabled');
+                try {
+                    const response = await fetch('/get_unique_project_name');
+                    const result = await response.json();
+                    if (result.success) {
+                        projectNameInput.value = result.project_name;
+                    } else {
+                        console.error('Failed to fetch unique project name:', result.error);
+                        projectNameInput.value = '#VisioFirm';
+                    }
+                } catch (error) {
+                    console.error('Error fetching unique project name:', error);
                     projectNameInput.value = '#VisioFirm';
                 }
-            } catch (error) {
-                console.error('Error fetching unique project name:', error);
-                projectNameInput.value = '#VisioFirm';
-            }
+            });
         });
 
         const deleteModal = document.getElementById('delete-confirm-modal');
@@ -1042,6 +1218,83 @@
             });
         });
 
+        // Duplicate Project Modal Handling
+        const duplicateModal = document.getElementById('duplicate-modal');
+        const duplicateSourceName = document.getElementById('duplicate-source-name');
+        const duplicateNewNameInput = document.getElementById('duplicate-new-name');
+        const duplicateIncludeAnnotations = document.getElementById('duplicate-include-annotations');
+        const duplicateErrorMsg = document.getElementById('duplicate-error-msg');
+        const confirmDuplicateBtn = document.getElementById('confirm-duplicate');
+        const cancelDuplicateBtn = document.getElementById('cancel-duplicate');
+        const cancelDuplicateFooter = document.getElementById('cancel-duplicate-footer');
+        let currentDuplicateSrc = null;
+
+        function closeDuplicateModal() {
+            duplicateModal.style.display = 'none';
+            currentDuplicateSrc = null;
+            duplicateErrorMsg.style.display = 'none';
+            duplicateErrorMsg.textContent = '';
+            confirmDuplicateBtn.disabled = false;
+            confirmDuplicateBtn.innerHTML = '<i class="fa-solid fa-clone"></i> Duplicate Project';
+        }
+
+        cancelDuplicateBtn.addEventListener('click', closeDuplicateModal);
+        cancelDuplicateFooter.addEventListener('click', closeDuplicateModal);
+
+        document.querySelectorAll('.duplicate-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const projectName = btn.dataset.project;
+                currentDuplicateSrc = projectName;
+                duplicateSourceName.textContent = projectName;
+                duplicateNewNameInput.value = `${projectName}_copy`;
+                duplicateIncludeAnnotations.checked = true;
+                duplicateErrorMsg.style.display = 'none';
+                duplicateModal.style.display = 'flex';
+                setTimeout(() => duplicateNewNameInput.select(), 50);
+            });
+        });
+
+        confirmDuplicateBtn.addEventListener('click', async () => {
+            if (!currentDuplicateSrc) return;
+            const newName = duplicateNewNameInput.value.trim();
+            if (!newName) {
+                duplicateErrorMsg.textContent = 'Please enter a valid project name';
+                duplicateErrorMsg.style.display = 'block';
+                return;
+            }
+            confirmDuplicateBtn.disabled = true;
+            confirmDuplicateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Duplicating...';
+            duplicateErrorMsg.style.display = 'none';
+
+            try {
+                const res = await fetch(`/dashboard/duplicate_project/${encodeURIComponent(currentDuplicateSrc)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        new_name: newName,
+                        include_annotations: duplicateIncludeAnnotations.checked
+                    })
+                });
+                const resData = await res.json();
+                if (res.ok && resData.success) {
+                    closeDuplicateModal();
+                    window.location.reload();
+                } else {
+                    duplicateErrorMsg.textContent = resData.detail || 'Failed to duplicate project';
+                    duplicateErrorMsg.style.display = 'block';
+                    confirmDuplicateBtn.disabled = false;
+                    confirmDuplicateBtn.innerHTML = '<i class="fa-solid fa-clone"></i> Duplicate Project';
+                }
+            } catch (err) {
+                duplicateErrorMsg.textContent = 'Server error during duplication: ' + err.message;
+                duplicateErrorMsg.style.display = 'block';
+                confirmDuplicateBtn.disabled = false;
+                confirmDuplicateBtn.innerHTML = '<i class="fa-solid fa-clone"></i> Duplicate Project';
+            }
+        });
+
+        // Overview Modal Handling with Dark Studio Theme
         document.querySelectorAll('.overview-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -1049,58 +1302,154 @@
                 document.getElementById('overview-project-name').textContent = projectName;
                 overviewModal.style.display = 'flex';
 
+                // Reset KPI placeholders
+                document.getElementById('kpi-total-images').textContent = '...';
+                document.getElementById('kpi-annotated-images').textContent = '...';
+                document.getElementById('kpi-annotated-percent').textContent = '...%';
+                document.getElementById('kpi-total-objects').textContent = '...';
+                document.getElementById('kpi-total-classes').textContent = '...';
+                document.getElementById('overview-classes-list').innerHTML = '<span class="loading-classes-text">Loading details...</span>';
+
                 try {
-                    const response = await fetch(`/dashboard/get_project_overview/${projectName}`);
+                    const response = await fetch(`/dashboard/get_project_overview/${encodeURIComponent(projectName)}`);
                     const data = await response.json();
                     if (data.error) {
                         alert(data.error);
                         return;
                     }
 
-                    document.getElementById('total-images-count').textContent = data.total_images;
+                    // Update Badge
+                    const setupBadge = document.getElementById('overview-setup-badge');
+                    if (setupBadge) {
+                        const st = data.setup_type || 'Bounding Box';
+                        setupBadge.textContent = st === 'Bounding Box' ? 'BBOX' : (st === 'Oriented Bounding Box' ? 'OBB' : (st === 'Segmentation' ? 'SEG' : 'CLS'));
+                        setupBadge.className = `project-badge ${st === 'Segmentation' ? 'badge-seg' : (st === 'Oriented Bounding Box' ? 'badge-obb' : 'badge-bb')}`;
+                    }
 
+                    // Update KPI Cards
+                    document.getElementById('kpi-total-images').textContent = (data.total_images || 0).toLocaleString();
+                    document.getElementById('kpi-annotated-images').textContent = (data.annotated_images || 0).toLocaleString();
+                    document.getElementById('kpi-annotated-percent').textContent = `${data.annotated_percentage || 0}%`;
+                    document.getElementById('kpi-total-objects').textContent = (data.total_annotations || 0).toLocaleString();
+                    document.getElementById('kpi-total-classes').textContent = (data.total_classes || 0).toLocaleString();
+
+                    // Dark Studio Theme for Plotly
+                    const plotlyConfig = { responsive: true, displayModeBar: false };
+
+                    // 1. Donut Chart for Image Annotation Status
                     if (data.total_images === 0) {
-                        document.getElementById('image-stats').innerHTML = '<p>No images in this project.</p>';
+                        document.getElementById('image-stats').innerHTML = '<div class="empty-chart-text">No images in this project</div>';
                     } else {
-                        var pieData = [{
+                        const pieData = [{
                             values: [data.annotated_images, data.non_annotated_images],
                             labels: ['Annotated', 'Non-annotated'],
-                            type: 'pie'
+                            type: 'pie',
+                            hole: 0.62,
+                            marker: {
+                                colors: ['#10b981', '#f59e0b']
+                            },
+                            textinfo: 'percent',
+                            textfont: { color: '#ffffff', size: 13, family: 'Inter, sans-serif' },
+                            hoverinfo: 'label+value+percent'
                         }];
-                        var pieLayout = { title: 'Image Annotation Status' };
-                        Plotly.newPlot('image-stats', pieData, pieLayout);
-                    }
-
-                    if (Object.keys(data.class_distribution).length === 0) {
-                        document.getElementById('class-distribution').innerHTML = '<p>No annotations in this project.</p>';
-                    } else {
-                        var barData = [{
-                            x: Object.keys(data.class_distribution),
-                            y: Object.values(data.class_distribution),
-                            type: 'bar'
-                        }];
-                        var barLayout = {
-                            title: 'Class Distribution',
-                            xaxis: { title: 'Classes' },
-                            yaxis: { title: 'Number of Annotations' }
+                        const pieLayout = {
+                            paper_bgcolor: 'transparent',
+                            plot_bgcolor: 'transparent',
+                            showlegend: true,
+                            legend: {
+                                orientation: 'h',
+                                x: 0.5,
+                                xanchor: 'center',
+                                y: -0.12,
+                                font: { color: '#94a3b8', size: 12, family: 'Inter, sans-serif' }
+                            },
+                            margin: { l: 20, r: 20, t: 20, b: 35 },
+                            height: 280
                         };
-                        Plotly.newPlot('class-distribution', barData, barLayout);
+                        Plotly.newPlot('image-stats', pieData, pieLayout, plotlyConfig);
                     }
 
-                    if (data.annotations_per_image.length === 0) {
-                        document.getElementById('annotations-per-image').innerHTML = '<p>No annotations in this project.</p>';
+                    // 2. Bar Chart for Class Distribution
+                    const classEntries = Object.entries(data.class_distribution || {});
+                    if (classEntries.length === 0) {
+                        document.getElementById('class-distribution').innerHTML = '<div class="empty-chart-text">No annotated classes yet</div>';
                     } else {
-                        var histData = [{
+                        classEntries.sort((a, b) => b[1] - a[1]);
+                        const barData = [{
+                            x: classEntries.map(e => e[0]),
+                            y: classEntries.map(e => e[1]),
+                            type: 'bar',
+                            marker: {
+                                color: '#6366f1',
+                                opacity: 0.88,
+                                line: { color: '#818cf8', width: 1.5 }
+                            },
+                            hoverinfo: 'x+y'
+                        }];
+                        const barLayout = {
+                            paper_bgcolor: 'transparent',
+                            plot_bgcolor: 'transparent',
+                            xaxis: {
+                                color: '#64748b',
+                                gridcolor: 'rgba(255, 255, 255, 0.05)',
+                                tickfont: { color: '#94a3b8', size: 11, family: 'Inter, sans-serif' }
+                            },
+                            yaxis: {
+                                color: '#64748b',
+                                gridcolor: 'rgba(255, 255, 255, 0.06)',
+                                tickfont: { color: '#94a3b8', size: 11, family: 'JetBrains Mono, monospace' }
+                            },
+                            margin: { l: 40, r: 20, t: 20, b: 50 },
+                            height: 280
+                        };
+                        Plotly.newPlot('class-distribution', barData, barLayout, plotlyConfig);
+                    }
+
+                    // 3. Classes Breakdown Chips
+                    const classesListEl = document.getElementById('overview-classes-list');
+                    if (classEntries.length === 0) {
+                        classesListEl.innerHTML = '<span class="empty-classes-text">No annotated classes in this project</span>';
+                    } else {
+                        classesListEl.innerHTML = classEntries.map(([cls, cnt]) => `
+                            <div class="overview-class-chip">
+                                <span class="chip-name">${cls}</span>
+                                <span class="chip-count">${cnt.toLocaleString()}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    // 4. Histogram (if present)
+                    const histContainer = document.getElementById('annotations-per-image-container');
+                    if (data.annotations_per_image && data.annotations_per_image.length > 0) {
+                        histContainer.style.display = 'block';
+                        const histData = [{
                             x: data.annotations_per_image,
-                            type: 'histogram'
+                            type: 'histogram',
+                            marker: { color: '#38bdf8', opacity: 0.8 }
                         }];
-                        var histLayout = {
-                            title: 'Annotations per Image',
-                            xaxis: { title: 'Number of Annotations' },
-                            yaxis: { title: 'Number of Images' }
+                        const histLayout = {
+                            paper_bgcolor: 'transparent',
+                            plot_bgcolor: 'transparent',
+                            xaxis: {
+                                title: { text: 'Annotations per Image', font: { color: '#64748b', size: 11 } },
+                                color: '#64748b',
+                                gridcolor: 'rgba(255, 255, 255, 0.05)',
+                                tickfont: { color: '#94a3b8', size: 11 }
+                            },
+                            yaxis: {
+                                title: { text: 'Images', font: { color: '#64748b', size: 11 } },
+                                color: '#64748b',
+                                gridcolor: 'rgba(255, 255, 255, 0.06)',
+                                tickfont: { color: '#94a3b8', size: 11 }
+                            },
+                            margin: { l: 45, r: 20, t: 20, b: 40 },
+                            height: 220
                         };
-                        Plotly.newPlot('annotations-per-image', histData, histLayout);
+                        Plotly.newPlot('annotations-per-image', histData, histLayout, plotlyConfig);
+                    } else {
+                        histContainer.style.display = 'none';
                     }
+
                 } catch (error) {
                     console.error('Error fetching overview data:', error);
                     alert('Failed to load project overview');
@@ -1109,20 +1458,14 @@
         });
 
         document.querySelectorAll('.project-card').forEach(card => {
-            card.addEventListener('click', async (e) => {
-                if (e.target.closest('.menu-btn, .menu-dropdown, .overview-btn, .import-btn, .delete-btn')) {
+            card.addEventListener('click', (e) => {
+                // Ignore clicks originating from inside the action buttons or menu
+                if (e.target.closest('.menu-btn, .menu-dropdown, .overview-btn, .import-btn, .delete-btn, .duplicates-btn, .add-classes-btn, .duplicate-btn')) {
                     return;
                 }
                 const projectName = card.dataset.project;
-                showLoadingOverlay(`Loading ${projectName}...`);
-                try {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    window.open(`/annotation/${projectName}`, '_blank');
-                    // Hide the overlay after 2 seconds
-                    setTimeout(hideLoadingOverlay, 2000);
-                } catch (error) {
-                    hideLoadingOverlay();
-                    console.error('Navigation error:', error);
+                if (projectName) {
+                    window.location.href = `/annotation/${encodeURIComponent(projectName)}`;
                 }
             });
         });
@@ -1136,12 +1479,24 @@
 
         document.addEventListener('click', (e) => {
             document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
-                if (!dropdown.contains(e.target) && !e.target.classList.contains('menu-btn')) {
+                if (!dropdown.contains(e.target) && !e.target.closest('.menu-btn')) {
                     dropdown.style.display = 'none';
-                    dropdown.previousElementSibling.setAttribute('aria-expanded', 'false');
+                    const triggerBtn = dropdown.previousElementSibling;
+                    if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
                 }
             });
         });
+
+        const searchInput = document.getElementById('project-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase().trim();
+                document.querySelectorAll('.project-card').forEach(card => {
+                    const name = (card.dataset.project || '').toLowerCase();
+                    card.style.display = name.includes(term) ? '' : 'none';
+                });
+            });
+        }
 
         confirmDeleteBtn.addEventListener('click', async () => {
             if (!deleteProjectName) return;

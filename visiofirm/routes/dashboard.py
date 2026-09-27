@@ -94,6 +94,11 @@ async def index(request: Request, current_user: Optional[User] = Depends(get_cur
                     image_files = []
             p['images'] = [os.path.join('/projects', safe_name, 'images', img) for img in image_files[:3]]
 
+        if 'Video' in p.get('setup_type', ''):
+            p['image_count'] = len(video_files)
+        else:
+            p['image_count'] = len(image_files)
+
         # ensure p has a canonical path field for template use
         p['path'] = project_full_path
         projects.append(p)
@@ -138,6 +143,36 @@ async def delete_project(request: Request, project_name: str, current_user: User
         return {"success": True}
     raise HTTPException(status_code=404, detail='Project not found')
 
+@router.post("/duplicate_project/{project_name}")
+async def duplicate_project(
+    request: Request,
+    project_name: str,
+    current_user: User = Depends(get_current_user_from_cookie)
+):
+    from visiofirm.projects import VFProjects
+    try:
+        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    except Exception:
+        body = {}
+    new_name = body.get("new_name")
+    include_annotations = body.get("include_annotations", True)
+    
+    logger.info("Duplicating project '%s' to '%s' (include_annotations=%s)", project_name, new_name, include_annotations)
+    try:
+        cloned_name = VFProjects.duplicate_project(
+            project_name,
+            new_name=new_name,
+            include_annotations=include_annotations,
+            projects_folder=PROJECTS_FOLDER
+        )
+        return {"success": True, "new_project_name": cloned_name}
+    except FileNotFoundError as e:
+        logger.warning("Project not found for duplication: %s", e)
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Error duplicating project %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/get_project_overview/{project_name}")
 async def get_project_overview(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
     safe_name = secure_filename(project_name)
@@ -150,17 +185,26 @@ async def get_project_overview(request: Request, project_name: str, current_user
         total_images = project.get_image_count() or 0
         annotated_images = project.get_annotated_image_count() or 0
         class_distribution = project.get_class_distribution() or {}
-        annotations_per_image = project.get_annotations_per_image() or {}
+        annotations_per_image = project.get_annotations_per_image() or []
         non_annotated_images = max(0, total_images - annotated_images)
+        total_annotations = sum(class_distribution.values()) if class_distribution else 0
+        total_classes = len(project.get_classes() or [])
+        annotated_pct = round((annotated_images / total_images * 100), 1) if total_images > 0 else 0
+        setup_type = project.get_setup_type() or 'Bounding Box'
 
         data = {
+            'project_name': project_name,
+            'setup_type': setup_type,
             'total_images': total_images,
             'annotated_images': annotated_images,
             'non_annotated_images': non_annotated_images,
+            'annotated_percentage': annotated_pct,
+            'total_annotations': total_annotations,
+            'total_classes': total_classes,
             'class_distribution': class_distribution,
             'annotations_per_image': annotations_per_image
         }
-        logger.info("Project overview for %s: %s total, %s annotated", project_name, total_images, annotated_images)
+        logger.info("Project overview for %s: %s total, %s annotated, %s classes", project_name, total_images, annotated_images, total_classes)
         return data
     except Exception as e:
         logger.exception("Error fetching overview for %s", project_name)

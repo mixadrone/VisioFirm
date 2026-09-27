@@ -10,17 +10,28 @@ import {
     startX,
     startY,
     selectedAnnotation,
+    selectedAnnotations,
+    setSelectedAnnotation,
+    setSelectedAnnotations,
+    addSelectedAnnotation,
+    removeSelectedAnnotation,
+    toggleSelectedAnnotation,
+    clearSelectedAnnotations,
+    isAnnotationSelected,
+    isSelectingMarquee,
+    setIsSelectingMarquee,
+    marqueeRect,
+    setMarqueeRect,
     selectedPointIndex,
+    setSelectedPointIndex,
     isRightClickEditing,
+    setIsRightClickEditing,
     setupType,
     setIsDrawing,
     setCurrentAnnotation,
     setIsDragging,
     setStartX,
     setStartY,
-    setSelectedAnnotation,
-    setSelectedPointIndex,
-    setIsRightClickEditing,
     setInitialRotation,
     setInitialCorners,
     initialBox,
@@ -36,7 +47,7 @@ import {
 } from './globals.js';
 import { drawImage } from './annotationDrawing.js';
 import { setHoveredAnnotation } from './annotationDrawing.js';
-import { toImageCoords, toCanvasCoords, clampToImageBounds, pushToUndoStack, clampAnnotationToBounds } from './annotationCore.js';
+import { toImageCoords, toCanvasCoords, clampToImageBounds, pushToUndoStack, clampAnnotationToBounds, isAnnotationIntersectingBox, getRotatedCorners } from './annotationCore.js';
 import { segmentArea } from './sam.js';
 
 let pendingDrawStart = null;
@@ -91,92 +102,87 @@ function isAnnotationVisible(anno) {
 }
 
 export function findSelectedAnnotation(point) {
-    for (let i = annotations.length - 1; i >= 0; i--) {
-        const annotation = annotations[i];
-        if (!isAnnotationVisible(annotation)) continue; // Skip invisible annotations
-        if (annotation.type === 'rect' || annotation.type === 'obbox') {
-            const centerX = annotation.x + annotation.width / 2;
-            const centerY = annotation.y + annotation.height / 2;
-            const canvasCenter = toCanvasCoords(centerX, centerY);
-            const halfWidth = annotation.width * viewport.zoom / 2;
-            const halfHeight = annotation.height * viewport.zoom / 2;
-            const rad = (annotation.rotation || 0) * Math.PI / 180;
-            const corners = [
-                { x: -halfWidth, y: -halfHeight },
-                { x: halfWidth, y: -halfHeight },
-                { x: -halfWidth, y: halfHeight },
-                { x: halfWidth, y: halfHeight }
-            ].map(corner => {
-                const cos = Math.cos(rad);
-                const sin = Math.sin(rad);
-                const x = canvasCenter.x + (corner.x * cos - corner.y * sin);
-                const y = canvasCenter.y + (corner.x * sin + corner.y * cos);
-                return { x, y };
-            });
-            const edges = [
-                { x: 0, y: -halfHeight },
-                { x: 0, y: halfHeight },
-                { x: -halfWidth, y: 0 },
-                { x: halfWidth, y: 0 }
-            ].map(edge => {
-                const cos = Math.cos(rad);
-                const sin = Math.sin(rad);
-                const x = canvasCenter.x + (edge.x * cos - edge.y * sin);
-                const y = canvasCenter.y + (edge.x * sin + edge.y * cos);
-                return { x, y };
-            });
-            if (setupType === "Oriented Bounding Box") {
-                const rotationHandle = { x: 0, y: -halfHeight - 20/viewport.zoom };
-                const cos = Math.cos(rad);
-                const sin = Math.sin(rad);
-                const rotX = canvasCenter.x + (rotationHandle.x * cos - rotationHandle.y * sin);
-                const rotY = canvasCenter.y + (rotationHandle.x * sin + rotationHandle.y * cos);
-                const distance = Math.sqrt(Math.pow(point.x - rotX, 2) + Math.pow(point.y - rotY, 2));
-                if (distance < 12) {
-                    setSelectedAnnotation(annotation);
-                    updateTagHighlights();
-                    setSelectedPointIndex(-2);
-                    setIsRotating(true);
-                    return annotation;
+    // 1. Check handles only on the currently active annotation when exactly 1 is selected
+    if (selectedAnnotations && selectedAnnotations.length === 1 && selectedAnnotation) {
+        const annotation = selectedAnnotation;
+        if (isAnnotationVisible(annotation)) {
+            if (annotation.type === 'rect' || annotation.type === 'obbox') {
+                const centerX = annotation.x + annotation.width / 2;
+                const centerY = annotation.y + annotation.height / 2;
+                const canvasCenter = toCanvasCoords(centerX, centerY);
+                const halfWidth = annotation.width * viewport.zoom / 2;
+                const halfHeight = annotation.height * viewport.zoom / 2;
+                const rad = (annotation.rotation || 0) * Math.PI / 180;
+                const corners = [
+                    { x: -halfWidth, y: -halfHeight },
+                    { x: halfWidth, y: -halfHeight },
+                    { x: -halfWidth, y: halfHeight },
+                    { x: halfWidth, y: halfHeight }
+                ].map(corner => {
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    const x = canvasCenter.x + (corner.x * cos - corner.y * sin);
+                    const y = canvasCenter.y + (corner.x * sin + corner.y * cos);
+                    return { x, y };
+                });
+                const edges = [
+                    { x: 0, y: -halfHeight },
+                    { x: 0, y: halfHeight },
+                    { x: -halfWidth, y: 0 },
+                    { x: halfWidth, y: 0 }
+                ].map(edge => {
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    const x = canvasCenter.x + (edge.x * cos - edge.y * sin);
+                    const y = canvasCenter.y + (edge.x * sin + edge.y * cos);
+                    return { x, y };
+                });
+                if (setupType === "Oriented Bounding Box") {
+                    const rotationHandle = { x: 0, y: -halfHeight - 20/viewport.zoom };
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    const rotX = canvasCenter.x + (rotationHandle.x * cos - rotationHandle.y * sin);
+                    const rotY = canvasCenter.y + (rotationHandle.x * sin + rotationHandle.y * cos);
+                    const distance = Math.sqrt(Math.pow(point.x - rotX, 2) + Math.pow(point.y - rotY, 2));
+                    if (distance < 12) {
+                        setSelectedPointIndex(-2);
+                        setIsRotating(true);
+                        return annotation;
+                    }
                 }
-            }
-            for (let j = 0; j < corners.length; j++) {
-                const distance = Math.sqrt(Math.pow(point.x - corners[j].x, 2) + Math.pow(point.y - corners[j].y, 2));
-                if (distance < 12) {
-                    setSelectedAnnotation(annotation);
-                    updateTagHighlights();
-                    setSelectedPointIndex(j);
-                    return annotation;
+                for (let j = 0; j < corners.length; j++) {
+                    const distance = Math.sqrt(Math.pow(point.x - corners[j].x, 2) + Math.pow(point.y - corners[j].y, 2));
+                    if (distance < 12) {
+                        setSelectedPointIndex(j);
+                        return annotation;
+                    }
                 }
-            }
-            for (let j = 0; j < edges.length; j++) {
-                const distance = Math.sqrt(Math.pow(point.x - edges[j].x, 2) + Math.pow(point.y - edges[j].y, 2));
-                if (distance < 12) {
-                    setSelectedAnnotation(annotation);
-                    updateTagHighlights();
-                    setSelectedPointIndex(j + 4);
-                    return annotation;
+                for (let j = 0; j < edges.length; j++) {
+                    const distance = Math.sqrt(Math.pow(point.x - edges[j].x, 2) + Math.pow(point.y - edges[j].y, 2));
+                    if (distance < 12) {
+                        setSelectedPointIndex(j + 4);
+                        return annotation;
+                    }
                 }
-            }
-        } else if (annotation.type === 'polygon') {
-            for (let j = 0; j < annotation.points.length; j++) {
-                const p = toCanvasCoords(annotation.points[j].x, annotation.points[j].y);
-                const distance = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2));
-                if (distance < 12) {
-                    setSelectedAnnotation(annotation);
-                    updateTagHighlights();
-                    setSelectedPointIndex(j);
-                    return annotation;
+            } else if (annotation.type === 'polygon') {
+                for (let j = 0; j < annotation.points.length; j++) {
+                    const p = toCanvasCoords(annotation.points[j].x, annotation.points[j].y);
+                    const distance = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2));
+                    if (distance < 12) {
+                        setSelectedPointIndex(j);
+                        return annotation;
+                    }
                 }
             }
         }
     }
+
+    // 2. Check hit inside any visible annotation body (from top to bottom)
+    // Pure lookup: DO NOT mutate selectedAnnotations here so group selection is preserved!
     for (let i = annotations.length - 1; i >= 0; i--) {
         const annotation = annotations[i];
-        if (!isAnnotationVisible(annotation)) continue; // Skip invisible annotations
+        if (!isAnnotationVisible(annotation)) continue;
         if (isPointInAnnotation(point, annotation)) {
-            setSelectedAnnotation(annotation);
-            updateTagHighlights();
             setSelectedPointIndex(-1);
             return annotation;
         }
@@ -311,21 +317,46 @@ function handleMouseDown(e) {
         }
     }
 
-    if (e.shiftKey) {
-        setIsDragging(true);
-        setSelectedAnnotation(null);
-        updateTagHighlights();
-        setStartX(pos.x - viewport.x);
-        setStartY(pos.y - viewport.y);
-        return;
-    }
+    // Shift is now dedicated to Selection operations (Add to selection / Marquee add)
 
     if (mode === 'rect' && e.button === 0) {
+        if (e.shiftKey) {
+            const clickedAnnotation = findSelectedAnnotation(pos);
+            if (clickedAnnotation) {
+                addSelectedAnnotation(clickedAnnotation);
+                updateTagHighlights();
+                setIsDragging(true);
+                setStartX(pos.x);
+                setStartY(pos.y);
+                beginAnnotationDrag(clickedAnnotation);
+                drawImage();
+                return;
+            } else {
+                // Shift + drag on empty space in rect mode starts marquee Add (+)
+                setIsSelectingMarquee(true);
+                setMarqueeRect({
+                    startX: pos.x,
+                    startY: pos.y,
+                    currentX: pos.x,
+                    currentY: pos.y,
+                    op: 'add',
+                    initialOp: 'add'
+                });
+                setStartX(pos.x);
+                setStartY(pos.y);
+                drawImage();
+                return;
+            }
+        }
         const clickedAnnotation = findSelectedAnnotation(pos);
         if (clickedAnnotation) {
             pendingDrawStart = null;
             setCurrentAnnotation(null);
             setIsDrawing(false);
+            if (!isAnnotationSelected(clickedAnnotation) || selectedAnnotations.length <= 1) {
+                setSelectedAnnotation(clickedAnnotation);
+            }
+            updateTagHighlights();
             setIsDragging(true);
             setStartX(pos.x);
             setStartY(pos.y);
@@ -381,7 +412,11 @@ function handleMouseDown(e) {
         if (!currentAnnotation) {
             const clickedAnnotation = findSelectedAnnotation(pos);
             if (clickedAnnotation) {
-                setSelectedAnnotation(clickedAnnotation);
+                if (e.shiftKey) {
+                    addSelectedAnnotation(clickedAnnotation);
+                } else if (!isAnnotationSelected(clickedAnnotation) || selectedAnnotations.length <= 1) {
+                    setSelectedAnnotation(clickedAnnotation);
+                }
                 updateTagHighlights();
                 setIsDragging(true);
                 setStartX(pos.x);
@@ -421,13 +456,23 @@ function handleMouseDown(e) {
     else if (mode === 'select' && e.button === 0) {
         const clickedAnnotation = findSelectedAnnotation(pos);
         if (clickedAnnotation) {
-            setSelectedAnnotation(clickedAnnotation);
+            if (e.shiftKey) {
+                addSelectedAnnotation(clickedAnnotation);
+            } else if (e.altKey) {
+                removeSelectedAnnotation(clickedAnnotation);
+            } else if (e.ctrlKey) {
+                toggleSelectedAnnotation(clickedAnnotation);
+            } else {
+                if (!isAnnotationSelected(clickedAnnotation) || selectedAnnotations.length <= 1) {
+                    setSelectedAnnotation(clickedAnnotation);
+                }
+            }
             updateTagHighlights();
             setIsDragging(true);
             setStartX(pos.x);
             setStartY(pos.y);
             beginAnnotationDrag(clickedAnnotation);
-            if ((clickedAnnotation.type === 'rect' || clickedAnnotation.type === 'obbox') && selectedPointIndex >= 0) {
+            if ((clickedAnnotation.type === 'rect' || clickedAnnotation.type === 'obbox') && selectedPointIndex >= 0 && selectedAnnotations.length === 1) {
                 const theta = (clickedAnnotation.rotation || 0) * Math.PI / 180;
                 const cosTheta = Math.cos(theta);
                 const sinTheta = Math.sin(theta);
@@ -448,34 +493,50 @@ function handleMouseDown(e) {
                 setInitialRotation(clickedAnnotation.rotation || 0);
             }
         } else {
-            setSelectedAnnotation(null);
-            updateTagHighlights();
-            setSelectedPointIndex(-1);
+            // Clicked on empty space: start marquee selection!
+            let op = 'replace';
+            if (e.shiftKey) op = 'add';
+            else if (e.altKey) op = 'subtract';
+            else if (e.ctrlKey) op = 'toggle';
+
+            setIsSelectingMarquee(true);
+            setMarqueeRect({
+                startX: pos.x,
+                startY: pos.y,
+                currentX: pos.x,
+                currentY: pos.y,
+                op: op,
+                initialOp: op
+            });
+            setStartX(pos.x);
+            setStartY(pos.y);
         }
         drawImage();
     }
 }
 
 function handleMouseMove(e) {
-    const target = selectedAnnotation;
-    const before = target && (isDragging || isRotating) ? JSON.parse(JSON.stringify(target)) : null;
-    processMouseMove(e);
-    if (before && JSON.stringify(before) !== JSON.stringify(target)) {
-        if (!dragUndoRecorded) {
-            // Record the geometry before the first actual change, not on selection.
-            const after = { ...target };
-            Object.assign(target, before);
-            pushToUndoStack();
-            Object.assign(target, after);
-            dragUndoRecorded = true;
-        }
-        drawImage();
+    if ((isDragging || isRotating) && !dragUndoRecorded && selectedAnnotations.length > 0) {
+        pushToUndoStack();
+        dragUndoRecorded = true;
     }
+    processMouseMove(e);
 }
 
 function processMouseMove(e) {
     const pos = getMousePos(canvas, e);
     const imgPos = toImageCoords(pos.x, pos.y);
+
+    if (isSelectingMarquee && marqueeRect) {
+        marqueeRect.currentX = pos.x;
+        marqueeRect.currentY = pos.y;
+        if (e.shiftKey) marqueeRect.op = 'add';
+        else if (e.altKey) marqueeRect.op = 'subtract';
+        else if (e.ctrlKey) marqueeRect.op = 'toggle';
+        else marqueeRect.op = marqueeRect.initialOp || 'replace';
+        drawImage();
+        return;
+    }
 
     // Update hovered annotation for tooltip
     const hovered = findHoveredAnnotation(pos);
@@ -535,9 +596,59 @@ function processMouseMove(e) {
             drawImage();
         }
     }
-    else if (isDragging && selectedAnnotation) {
+    else if (isDragging && selectedAnnotations && selectedAnnotations.length > 0) {
         const dx = (pos.x - startX) / viewport.zoom;
         const dy = (pos.y - startY) / viewport.zoom;
+
+        if (selectedAnnotations.length > 1 && selectedPointIndex < 0) {
+            // Group translation with boundary clamping for the whole group
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            selectedAnnotations.forEach(ann => {
+                if (ann.type === 'rect' || ann.type === 'obbox') {
+                    const corners = ann.rotation ? getRotatedCorners(ann) : [
+                        { x: ann.x, y: ann.y },
+                        { x: ann.x + ann.width, y: ann.y + ann.height }
+                    ];
+                    corners.forEach(c => {
+                        minX = Math.min(minX, c.x);
+                        maxX = Math.max(maxX, c.x);
+                        minY = Math.min(minY, c.y);
+                        maxY = Math.max(maxY, c.y);
+                    });
+                } else if (ann.type === 'polygon' && Array.isArray(ann.points)) {
+                    ann.points.forEach(p => {
+                        minX = Math.min(minX, p.x);
+                        maxX = Math.max(maxX, p.x);
+                        minY = Math.min(minY, p.y);
+                        maxY = Math.max(maxY, p.y);
+                    });
+                }
+            });
+
+            if (minX !== Infinity && currentImage) {
+                const groupBBoxWidth = maxX - minX;
+                const groupBBoxHeight = maxY - minY;
+                const newMinX = minX + dx;
+                const newMinY = minY + dy;
+                const clampedMinX = Math.max(0, Math.min(newMinX, currentImage.width - groupBBoxWidth));
+                const clampedMinY = Math.max(0, Math.min(newMinY, currentImage.height - groupBBoxHeight));
+                const actualDx = clampedMinX - minX;
+                const actualDy = clampedMinY - minY;
+
+                selectedAnnotations.forEach(ann => {
+                    if (ann.type === 'rect' || ann.type === 'obbox') {
+                        ann.x += actualDx;
+                        ann.y += actualDy;
+                    } else if (ann.type === 'polygon' && Array.isArray(ann.points)) {
+                        ann.points = ann.points.map(p => ({ x: p.x + actualDx, y: p.y + actualDy }));
+                    }
+                });
+            }
+            setStartX(pos.x);
+            setStartY(pos.y);
+            drawImage();
+            return;
+        }
 
         if (isRightClickEditing || mode === 'select' || mode === 'rect' || mode === 'polygon') {
             if (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox') {
@@ -884,6 +995,56 @@ function processMouseMove(e) {
 function handleMouseUp(e) {
     if (isPanning) {
         setIsPanning(false);
+    }
+
+    if (isSelectingMarquee && marqueeRect) {
+        const dist = Math.hypot(marqueeRect.currentX - marqueeRect.startX, marqueeRect.currentY - marqueeRect.startY);
+        if (dist > 4) {
+            const minCanvasX = Math.min(marqueeRect.startX, marqueeRect.currentX);
+            const minCanvasY = Math.min(marqueeRect.startY, marqueeRect.currentY);
+            const maxCanvasX = Math.max(marqueeRect.startX, marqueeRect.currentX);
+            const maxCanvasY = Math.max(marqueeRect.startY, marqueeRect.currentY);
+
+            const p1 = toImageCoords(minCanvasX, minCanvasY);
+            const p2 = toImageCoords(maxCanvasX, maxCanvasY);
+            const imgBox = {
+                x: Math.min(p1.x, p2.x),
+                y: Math.min(p1.y, p2.y),
+                width: Math.abs(p2.x - p1.x),
+                height: Math.abs(p2.y - p1.y)
+            };
+
+            const hitAnnotations = annotations.filter(anno => {
+                if (!isAnnotationVisible(anno)) return false;
+                return isAnnotationIntersectingBox(anno, imgBox);
+            });
+
+            if (marqueeRect.op === 'add') {
+                const merged = new Set([...selectedAnnotations, ...hitAnnotations]);
+                setSelectedAnnotations(Array.from(merged));
+            } else if (marqueeRect.op === 'subtract') {
+                setSelectedAnnotations(selectedAnnotations.filter(a => !hitAnnotations.includes(a)));
+            } else if (marqueeRect.op === 'toggle') {
+                const current = [...selectedAnnotations];
+                hitAnnotations.forEach(a => {
+                    const idx = current.indexOf(a);
+                    if (idx !== -1) current.splice(idx, 1);
+                    else current.push(a);
+                });
+                setSelectedAnnotations(current);
+            } else {
+                setSelectedAnnotations(hitAnnotations);
+            }
+        } else {
+            // Click without drag on empty space:
+            if (marqueeRect.op === 'replace') {
+                clearSelectedAnnotations();
+            }
+        }
+        setIsSelectingMarquee(false);
+        setMarqueeRect(null);
+        updateTagHighlights();
+        drawImage();
     }
     if (mode === 'rect') {
         if (isDrawing && currentAnnotation) {

@@ -6,6 +6,10 @@ import {
     annotations, 
     confidenceThreshold,
     selectedAnnotation,
+    selectedAnnotations,
+    isAnnotationSelected,
+    isSelectingMarquee,
+    marqueeRect,
     selectedPointIndex,
     classColors,
     gridEnabled,
@@ -93,11 +97,14 @@ export function drawImage() {
         ctx.stroke();
         ctx.restore();
     }
-    if (selectedAnnotation) {
-        drawSelectionHandles(selectedAnnotation);
+    if (selectedAnnotations && selectedAnnotations.length === 1) {
+        drawSelectionHandles(selectedAnnotations[0]);
     }
     if (hoveredAnnotation) {
         drawTooltip(hoveredAnnotation);
+    }
+    if (isSelectingMarquee && marqueeRect) {
+        drawMarqueeRect(marqueeRect);
     }
 }
 
@@ -214,7 +221,8 @@ function strokeCurrentPath(style, { selected = false, perimeter = 0 } = {}) {
 
 function drawRectAnnotation(anno) {
     ctx.save();
-    const style = getResolvedAnnotationStyle(anno, { selected: anno === selectedAnnotation });
+    const isSel = isAnnotationSelected(anno);
+    const style = getResolvedAnnotationStyle(anno, { selected: isSel });
     const centerX = anno.x + anno.width / 2;
     const centerY = anno.y + anno.height / 2;
     const canvasCenter = toCanvasCoords(centerX, centerY);
@@ -235,7 +243,7 @@ function drawRectAnnotation(anno) {
         ctx.fill();
     }
     if (style.renderMode === 'outline' || style.renderMode === 'outline_fill') {
-        strokeCurrentPath(style, { selected: anno === selectedAnnotation, perimeter });
+        strokeCurrentPath(style, { selected: isSel, perimeter });
     }
     ctx.restore();
 }
@@ -243,7 +251,8 @@ function drawRectAnnotation(anno) {
 function drawPolygonAnnotation(anno) {
     if (!anno.points || anno.points.length < 1) return;
     ctx.save();
-    const style = getResolvedAnnotationStyle(anno, { selected: anno === selectedAnnotation });
+    const isSel = isAnnotationSelected(anno);
+    const style = getResolvedAnnotationStyle(anno, { selected: isSel });
     ctx.beginPath();
     const firstPoint = toCanvasCoords(anno.points[0].x, anno.points[0].y);
     ctx.moveTo(firstPoint.x, firstPoint.y);
@@ -269,7 +278,7 @@ function drawPolygonAnnotation(anno) {
         ctx.fill();
     }
     if (style.renderMode === 'outline' || style.renderMode === 'outline_fill' || !anno.closed) {
-        strokeCurrentPath(style, { selected: anno === selectedAnnotation, perimeter });
+        strokeCurrentPath(style, { selected: isSel, perimeter });
     }
     
     // Draw points for in-progress polygon
@@ -430,4 +439,54 @@ export function resetView() {
     viewport.x = (canvas.width - currentImage.width * viewport.zoom) / 2;
     viewport.y = (canvas.height - currentImage.height * viewport.zoom) / 2;
     drawImage();
+}
+
+function drawMarqueeRect(rect) {
+    const x = Math.min(rect.startX, rect.currentX);
+    const y = Math.min(rect.startY, rect.currentY);
+    const w = Math.abs(rect.currentX - rect.startX);
+    const h = Math.abs(rect.currentY - rect.startY);
+    if (w < 1 && h < 1) return;
+
+    ctx.save();
+    let fillColor = 'rgba(99, 102, 241, 0.12)';
+    let strokeColor = 'rgba(99, 102, 241, 0.9)';
+    let badgeText = '';
+    let badgeBg = '#6366f1';
+
+    if (rect.op === 'add') {
+        fillColor = 'rgba(16, 185, 129, 0.15)';
+        strokeColor = 'rgba(16, 185, 129, 0.95)';
+        badgeText = '+';
+        badgeBg = '#10b981';
+    } else if (rect.op === 'subtract') {
+        fillColor = 'rgba(239, 68, 68, 0.15)';
+        strokeColor = 'rgba(239, 68, 68, 0.95)';
+        badgeText = '−';
+        badgeBg = '#ef4444';
+    }
+
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x, y, w, h);
+
+    if (badgeText) {
+        ctx.setLineDash([]);
+        ctx.fillStyle = badgeBg;
+        const badgeX = rect.currentX + (rect.currentX >= rect.startX ? 8 : -20);
+        const badgeY = rect.currentY + (rect.currentY >= rect.startY ? 8 : -20);
+        ctx.beginPath();
+        ctx.arc(badgeX + 6, badgeY + 6, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, badgeX + 6, badgeY + 6);
+    }
+    ctx.restore();
 }

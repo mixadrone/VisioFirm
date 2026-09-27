@@ -1,0 +1,21 @@
+### Result
+131. [GET] https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main/config.json => [307] 
+132. [GET] https://huggingface.co/api/resolve-cache/models/Xenova/slimsam-77-uniform/5850ab45f587c112167512ffef949107115e26a0/config.json?%2FXenova%2Fslimsam-77-uniform%2Fresolve%2Fmain%2Fconfig.json=&etag=%22b69eda4ef734658139fd9d27f35a1a16130ef8cf%22 => [200] 
+133. [GET] https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main/onnx/vision_encoder.onnx => [302] 
+134. [GET] https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main/onnx/prompt_encoder_mask_decoder.onnx => [302] 
+135. [GET] https://us.aws.cdn.hf.co/xet-bridge-us/659c0ba3c2b6b91355ddeef3/ad8baa02a894d5d6b60c1a563143b7d0a7651906de3387ca0aaff885f5fe1904?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27prompt_encoder_mask_decoder.onnx%3B+filename%3D%22prompt_encoder_mask_decoder.onnx%22%3B&xip=TmggNXwjRtY&user_id=public&X-Xet-Cas-Uid=public&Expires=1790537428&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjU5YzBiYTNjMmI2YjkxMzU1ZGRlZWYzL2FkOGJhYTAyYTg5NGQ1ZDZiNjBjMWE1NjMxNDNiN2QwYTc2NTE5MDZkZTMzODdjYTBhYWZmODg1ZjVmZTE5MDRcXD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3cHJvbXB0X2VuY29kZXJfbWFza19kZWNvZGVyLm9ubnglM0IrZmlsZW5hbWUlM0QlMjJwcm9tcHRfZW5jb2Rlcl9tYXNrX2RlY29kZXIub25ueCUyMiUzQiZ4aXA9VG1nZ05Yd2pSdFkmdXNlcl9pZD1wdWJsaWMmWC1YZXQtQ2FzLVVpZD1wdWJsaWMiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkVwb2NoVGltZSI6MTc5MDUzNzQyOH19fV19&Signature=MEUCIQCd4A7BSHvLFeiKfHET11SHAG31NqZt7o3VeLFz64KrjAIgFUPzplBSa1lokbmoGPg2VQjx3XuhWbxcq641lZwUCiA_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F&Hash-Algorithm=SHA256 => [200] 
+136. [GET] https://us.aws.cdn.hf.co/xet-bridge-us/659c0ba3c2b6b91355ddeef3/4cd563bc982c27c7ec8cd3b16edc22a8b493bf513e55fdf33826e28922afc34a?X-Xet-Cas-Uid=public&user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27vision_encoder.onnx%3B+filename%3D%22vision_encoder.onnx%22%3B&xip=TmggNXwjRtY&Expires=1790537428&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjU5YzBiYTNjMmI2YjkxMzU1ZGRlZWYzLzRjZDU2M2JjOTgyYzI3YzdlYzhjZDNiMTZlZGMyMmE4YjQ5M2JmNTEzZTU1ZmRmMzM4MjZlMjg5MjJhZmMzNGFcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZ1c2VyX2lkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dmlzaW9uX2VuY29kZXIub25ueCUzQitmaWxlbmFtZSUzRCUyMnZpc2lvbl9lbmNvZGVyLm9ubnglMjIlM0ImeGlwPVRtZ2dOWHdqUnRZIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJFcG9jaFRpbWUiOjE3OTA1Mzc0Mjh9fX1dfQ__&Signature=MEUCIQCdSPuEKVWlAkuKQwj5thn9fxH3b8mccIQ9MXjA3WGUpgIgdTbYk5RPLDSoWrdwNnK12bt15wUWwbTsNhpf0QwxweM_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F&Hash-Algorithm=SHA256 => [200] 
+137. [GET] https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm => [200] 
+138. [GET] https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.mjs => [200] 
+140. [GET] https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main/preprocessor_config.json => [307] 
+141. [GET] https://huggingface.co/api/resolve-cache/models/Xenova/slimsam-77-uniform/5850ab45f587c112167512ffef949107115e26a0/preprocessor_config.json?%2FXenova%2Fslimsam-77-uniform%2Fresolve%2Fmain%2Fpreprocessor_config.json=&etag=%22732fbaf0c512b97d8d9161f51bc157bfb2873d12%22 => [200] 
+3177. [GET] http://localhost:8000/annotation/get_annotations/Diodes/DJI_20250708125335_0090_T.JPG => [200] OK
+3178. [GET] http://localhost:8000/dashboard/get_project_overview/Diodes => [200] OK
+3263. [GET] http://localhost:8000/dashboard/get_project_overview/Diodes => [200] OK
+3264. [GET] http://localhost:8000/annotation/get_annotations/Diodes/DJI_20250708125335_0090_T.JPG => [200] OK
+3268. [GET] http://localhost:8000/annotation/get_annotations/Diodes/DJI_20250708125339_0091_T.JPG => [200] OK
+3269. [GET] http://localhost:8000/annotation/get_annotations/Diodes/DJI_20250708125335_0090_T.JPG => [200] OK
+3271. [GET] http://localhost:8000/annotation/check_preannotation_status?project_name=Diodes => [200] OK
+3272. [GET] http://localhost:8000/annotation/check_gpu => [200] OK
+
+Note: 3254 static requests not shown, run with --static option to see them.

@@ -1,0 +1,139 @@
+### Page
+- Page URL: http://localhost:8000/dashboard/
+- Page Title: Dashboard - VisioFirm
+### Snapshot
+```yaml
+- generic [ref=f5e2]:
+  - complementary [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - button "" [ref=f5e5] [cursor=pointer]
+      - link "VisioFirm VisioFirm":
+        - /url: /
+        - img "VisioFirm"
+        - generic: VisioFirm
+    - navigation [ref=f5e7]:
+      - list [ref=f5e8]:
+        - listitem [ref=f5e9]:
+          - link " Dashboard" [ref=f5e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f5e11]: 
+            - generic: Dashboard
+        - listitem [ref=f5e13]:
+          - link " GitHub" [ref=f5e14] [cursor=pointer]:
+            - /url: https://github.com/OschAI/VisioFirm
+            - generic [ref=f5e15]: 
+            - generic: GitHub
+    - list [ref=f5e18]:
+      - listitem [ref=f5e19]:
+        - button " Theme" [ref=f5e20] [cursor=pointer]:
+          - generic [ref=f5e21]:
+            - generic [ref=f5e22]: 
+            - text: 
+          - generic: Theme
+      - listitem [ref=f5e23]:
+        - link " mixa" [ref=f5e24] [cursor=pointer]:
+          - /url: /auth/profile
+          - generic [ref=f5e25]: 
+          - generic: mixa
+      - listitem [ref=f5e27]:
+        - link " Logout" [ref=f5e28] [cursor=pointer]:
+          - /url: /auth/logout
+          - generic [ref=f5e29]: 
+          - generic: Logout
+  - generic [ref=f5e31]:
+    - banner [ref=f5e32]:
+      - generic [ref=f5e34]:
+        - link " Home" [ref=f5e35] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e36]: 
+          - text: Home
+        - generic [ref=f5e37]: 
+        - generic [ref=f5e39]: Dashboard
+      - generic [ref=f5e40]:
+        - button "" [ref=f5e41] [cursor=pointer]: 
+        - generic "mixa" [ref=f5e43]: M
+    - main [ref=f5e46]:
+      - generic [ref=f5e47]:
+        - generic [ref=f5e48]:
+          - generic [ref=f5e49]:
+            - heading "Projects" [level=2] [ref=f5e50]
+            - generic [ref=f5e51]: "3"
+          - generic [ref=f5e52]:
+            - generic [ref=f5e53]:
+              - generic: 
+              - textbox "Search projects..." [ref=f5e54]
+            - button "+ Create New Project" [ref=f5e55] [cursor=pointer]:
+              - generic [ref=f5e56]: +
+              - generic [ref=f5e57]: Create New Project
+        - generic [ref=f5e58]:
+          - generic [ref=f5e59] [cursor=pointer]:
+            - generic "Bounding Box" [ref=f5e60]: BBOX
+            - generic [ref=f5e61]:
+              - img "Diodes" [ref=f5e62]
+              - img "Diodes" [ref=f5e63]
+              - img "Diodes" [ref=f5e64]
+            - generic [ref=f5e65]:
+              - generic [ref=f5e66]:
+                - heading "Diodes" [level=4] [ref=f5e67]
+                - generic [ref=f5e68]:
+                  - generic [ref=f5e69]:
+                    - generic [ref=f5e70]: 
+                    - text: 3063 items
+                  - generic [ref=f5e71]: •
+                  - generic [ref=f5e72]: Bounding Box
+              - generic [ref=f5e73]:
+                - button " Open" [ref=f5e74]:
+                  - generic [ref=f5e75]: 
+                  - generic [ref=f5e76]: Open
+                - generic [ref=f5e77]:
+                  - button "Menu for Diodes" [ref=f5e78]:
+                    - generic [ref=f5e79]: 
+                  - text:     
+          - generic [ref=f5e80] [cursor=pointer]:
+            - generic "Bounding Box" [ref=f5e81]: BBOX
+            - generic [ref=f5e82]:
+              - img "Serial" [ref=f5e83]
+              - img "Serial" [ref=f5e84]
+              - img "Serial" [ref=f5e85]
+            - generic [ref=f5e86]:
+              - generic [ref=f5e87]:
+                - heading "Serial" [level=4] [ref=f5e88]
+                - generic [ref=f5e89]:
+                  - generic [ref=f5e90]:
+                    - generic [ref=f5e91]: 
+                    - text: 654 items
+                  - generic [ref=f5e92]: •
+                  - generic [ref=f5e93]: Bounding Box
+              - generic [ref=f5e94]:
+                - button " Open" [ref=f5e95]:
+                  - generic [ref=f5e96]: 
+                  - generic [ref=f5e97]: Open
+                - generic [ref=f5e98]:
+                  - button "Menu for Serial" [ref=f5e99]:
+                    - generic [ref=f5e100]: 
+                  - text:     
+          - generic [ref=f5e101] [cursor=pointer]:
+            - generic "Bounding Box" [ref=f5e102]: BBOX
+            - generic [ref=f5e103]:
+              - img "VisioFirm" [ref=f5e104]
+              - img "VisioFirm" [ref=f5e105]
+              - img "VisioFirm" [ref=f5e106]
+            - generic [ref=f5e107]:
+              - generic [ref=f5e108]:
+                - heading "VisioFirm" [level=4] [ref=f5e109]
+                - generic [ref=f5e110]:
+                  - generic [ref=f5e111]:
+                    - generic [ref=f5e112]: 
+                    - text: 1066 items
+                  - generic [ref=f5e113]: •
+                  - generic [ref=f5e114]: Bounding Box
+              - generic [ref=f5e115]:
+                - button " Open" [ref=f5e116]:
+                  - generic [ref=f5e117]: 
+                  - generic [ref=f5e118]: Open
+                - generic [ref=f5e119]:
+                  - button "Menu for VisioFirm" [ref=f5e120]:
+                    - generic [ref=f5e121]: 
+                  - text:     
+      - text:  
+```

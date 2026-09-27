@@ -482,3 +482,63 @@ class VFProjects:
                 raise last_err
         logger.warning(f"Project {name} not found")
         return False
+
+    @classmethod
+    def duplicate_project(cls, name, new_name=None, include_annotations=True, projects_folder=PROJECTS_FOLDER):
+        """Duplicate an existing project.
+        
+        Args:
+            name (str): Source project name.
+            new_name (str, optional): Target project name. If omitted, uses '{name}_copy'.
+            include_annotations (bool): Whether to preserve annotations in the copy.
+            projects_folder (str): Root projects directory.
+            
+        Returns:
+            str: The name of the duplicated project.
+        """
+        src_path = os.path.join(projects_folder, secure_filename(name))
+        if not os.path.exists(src_path):
+            raise FileNotFoundError(f"Source project '{name}' not found at {src_path}")
+            
+        target_name = new_name.strip() if new_name and new_name.strip() else f"{name}_copy"
+        safe_target_name = ensure_unique_project_name(target_name, projects_folder)
+        dst_path = os.path.join(projects_folder, safe_target_name)
+        
+        # Copy directory tree
+        shutil.copytree(src_path, dst_path)
+        
+        # Update config.db in the copied project
+        db_path = os.path.join(dst_path, "config.db")
+        if os.path.exists(db_path):
+            from contextlib import closing
+            with closing(sqlite3.connect(db_path)) as conn, conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("UPDATE Project_Configuration SET project_name = ?", (safe_target_name,))
+                except Exception as e:
+                    logger.warning("Could not update Project_Configuration.project_name: %s", e)
+                
+                try:
+                    cursor.execute("SELECT image_id, absolute_path FROM Images")
+                    rows = cursor.fetchall()
+                    for img_id, old_abs in rows:
+                        if old_abs:
+                            fname = os.path.basename(old_abs)
+                            target_img_dir = os.path.join(dst_path, "images")
+                            new_abs = os.path.join(target_img_dir, fname) if os.path.exists(target_img_dir) else os.path.join(dst_path, fname)
+                            cursor.execute("UPDATE Images SET absolute_path = ? WHERE image_id = ?", (new_abs, img_id))
+                except Exception as e:
+                    logger.warning("Could not update Images.absolute_path: %s", e)
+                
+                if not include_annotations:
+                    try:
+                        cursor.execute("DELETE FROM Annotations")
+                        cursor.execute("DELETE FROM Preannotations")
+                        cursor.execute("DELETE FROM ReviewedImages")
+                    except Exception as e:
+                        logger.warning("Could not clear annotations: %s", e)
+                        
+                conn.commit()
+                
+        logger.info(f"Successfully duplicated project '{name}' to '{safe_target_name}'")
+        return safe_target_name

@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisioFirm — Варіанти дизайну вікна анотації</title>
+    <!-- Google Fonts & Font Awesome 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0d0d11;
+            --surface-color: #16161c;
+            --surface-hover: #202028;
+            --card-bg: #1a1a22;
+            --border-color: #272733;
+            --border-subtle: #1e1e27;
+            --text-color: #f3f3f7;
+            --text-light: #9494a8;
+            --text-muted: #626274;
+            
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-alpha: rgba(99, 102, 241, 0.16);
+            
+            --success-color: #10b981;
+            --success-hover: #059669;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --accent-purple: #8b5cf6;
+            
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+            --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Concept Selector Header */
+        .showcase-header {
+            height: 52px;
+            background: #111116;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .showcase-title-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .showcase-badge {
+            background: var(--primary-alpha);
+            color: var(--primary-color);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 999px;
+            letter-spacing: 0.05em;
+        }
+
+        .showcase-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        /* Switcher Tabs */
+        .variant-tabs {
+            display: inline-flex;
+            background: #181822;
+            padding: 3px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            gap: 4px;
+        }
+
+        .variant-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .variant-tab-btn:hover {
+            color: var(--text-color);
+            background: var(--surface-hover);
+        }
+
+        .variant-tab-btn.active {
+            background: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 2px 8px var(--primary-alpha);
+        }
+
+        .variant-tab-btn .hotkey-tag {
+            font-size: 0.68rem;
+            opacity: 0.75;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.25);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .showcase-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-info {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-info:hover {
+            background: var(--surface-hover);
+            color: var(--text-color);
+        }
+
+        /* Main Workspace Frame */
+        .showcase-workspace {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .variant-view {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            background: #09090c;
+        }
+
+        .variant-view.active {
+            display: flex;
+        }
+
+        /* Explanatory Banner */
+        .variant-summary-bar {
+            background: rgba(22, 22, 30, 0.85);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            backdrop-filter: blur(8px);
+        }
+
+        .summary-features {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .summary-feature-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .summary-feature-item i {
+            color: var(--success-color);
+            font-size: 0.75rem;
+        }
+
+        /* ==========================================================================
+           LAYOUT A: "Top-Bar Studio" (Ultralytics / Roboflow Style)
+           - Головні інструменти у верхній горизонтальній панелі (Modes, Zoom, Actions)
+           - Мініатюрна панель ліворуч — тонка (64px) з можливістю розгортання
+           - Чистий Canvas без бічних плаваючих блоків
+           - Нижня панель — компактна стрічка класів (36px)
+           ========================================================================== */
+        .layout-a-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Tool Header */
+        .top-toolbar-strip {
+            height: 44px;
+            background: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            gap: 12px;
+            z-index: 50;
+        }
+
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tool-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color);
+            margin: 0 4px;
+        }
+
+        .tool-btn {
+            height: 32px;
+            min-width: 32px;
+            padding: 0 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-light);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
+        .tool-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .tool-btn.active {
+            background: var(--primary-color);
+            color: #ffffff;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px var(--primary-alpha);
+        }
+
+        .tool-btn.danger-hover:hover {
+            color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .chip-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .chip-badge:hover {
+            background: var(--surface-hover);
+            color: var(--text-color);
+        }
+
+        .confidence-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+
+        .confidence-pill input[type="range"] {
+            width: 70px;
+            height: 4px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        /* Layout A Body (Sidebar + Canvas + Bottom) */
+        .layout-a-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Compact Thumbnails Strip */
+        .compact-thumbs-sidebar {
+            width: 72px;
+            background: var(--surface-color);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex-shrink: 0;
+            padding: 8px 6px;
+            gap: 8px;
+            scrollbar-width: thin;
+        }
+
+        .compact-thumb-card {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .compact-thumb-card:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: scale(1.03);
+        }
+
+        .compact-thumb-card.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--primary-alpha);
+        }
+
+        .compact-thumb-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(15%);
+        }
+
+        .compact-thumb-id {
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .compact-thumb-status {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.6);
+        }
+
+        .status-annotated { background: var(--success-color); }
+        .status-preannotated { background: var(--accent-purple); }
+        .status-unannotated { background: var(--warning-color); }
+
+        /* Canvas Workspace */
+        .canvas-area-wrapper {
+            flex: 1;
+            position: relative;
+            background: #08080a;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Interactive Simulated Canvas Canvas Image */
+        .mock-image-stage {
+            position: relative;
+            width: 80%;
+            max-width: 900px;
+            aspect-ratio: 4 / 3;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><defs><radialGradient id="g" cx="50%" cy="50%" r="75%"><stop offset="0%" stop-color="%233a3d46"/><stop offset="100%" stop-color="%231a1b20"/></radialGradient></defs><rect width="800" height="600" fill="url(%23g)"/><line x1="0" y1="200" x2="800" y2="200" stroke="%23555866" stroke-width="2"/><line x1="0" y1="400" x2="800" y2="400" stroke="%23555866" stroke-width="2"/><rect x="150" y="80" width="500" height="80" fill="%23454854" opacity="0.4"/><text x="400" y="320" font-family="sans-serif" font-size="28" fill="%23777a88" text-anchor="middle" font-weight="bold">DRONE THERMAL PREVIEW (1280x1024)</text></svg>') center/contain no-repeat;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Mock Bounding Box Annotation */
+        .mock-bbox {
+            position: absolute;
+            top: 25%;
+            left: 20%;
+            width: 35%;
+            height: 50%;
+            border: 2px solid #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .mock-bbox-tag {
+            background: #10b981;
+            color: #000;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            width: fit-content;
+            border-bottom-right-radius: 4px;
+        }
+
+        /* Mock Handles */
+        .bbox-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ffffff;
+            border: 1.5px solid #10b981;
+            border-radius: 2px;
+        }
+        .handle-nw { top: -4px; left: -4px; }
+        .handle-ne { top: -4px; right: -4px; }
+        .handle-se { bottom: -4px; right: -4px; }
+        .handle-sw { bottom: -4px; left: -4px; }
+
+        /* Floating Over-Canvas Image Metadata Chip */
+        .canvas-top-meta {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 18, 24, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-sm);
+            pointer-events: none;
+        }
+
+        .canvas-top-meta b {
+            color: var(--text-color);
+        }
+
+        /* Bottom Classes & Approval Strip (Layout A) */
+        .bottom-class-dock {
+            height: 48px;
+            background: var(--surface-color);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .class-pills-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex: 1;
+        }
+        .class-pills-row::-webkit-scrollbar { display: none; }
+
+        .class-chip-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 30px;
+            padding: 0 10px 0 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .class-chip-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .class-chip-pill.active {
+            box-shadow: 0 0 0 2px var(--surface-color), 0 0 0 4px var(--primary-color);
+            transform: scale(1.03);
+        }
+
+        .class-eye-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            transition: var(--transition);
+        }
+        .class-eye-btn:hover { background: rgba(0, 0, 0, 0.45); }
+
+        .bottom-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-unapprove {
+            height: 32px;
+            padding: 0 12px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-unapprove:hover {
+            color: var(--danger-color);
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .btn-approve {
+            height: 32px;
+            padding: 0 16px;
+            background: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px var(--primary-alpha);
+        }
+        .btn-approve:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 4px 14px var(--primary-alpha);
+        }
+
+        /* ==========================================================================
+           LAYOUT B: "Modern Floating Dock" (Figma / CVAT 2026 Style)
+           - Плаваючий острівець інструментів зліва (Floating Glass Dock)
+           - Мініатюри внизу як Filmstrip з можливістю згортання
+           ========================================================================== */
+        .layout-b-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Floating Tool Palette */
+        .floating-tool-dock {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            background: rgba(20, 20, 26, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+        }
+
+        .floating-tool-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        .floating-tool-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text-color);
+        }
+
+        .floating-tool-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            box-shadow: 0 0 12px var(--primary-alpha);
+        }
+
+        .dock-divider {
+            width: 24px;
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px auto;
+        }
+
+        /* Floating Top Bar */
+        .floating-top-header {
+            position: absolute;
+            top: 20px;
+            left: 80px;
+            right: 20px;
+            height: 42px;
+            background: rgba(20, 20, 26, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 90;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Filmstrip Bottom Thumbnails */
+        .filmstrip-drawer {
+            height: 80px;
+            background: var(--surface-color);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 12px;
+            z-index: 90;
+        }
+
+        .filmstrip-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            flex: 1;
+            height: 64px;
+            align-items: center;
+        }
+
+        .filmstrip-item {
+            width: 72px;
+            height: 54px;
+            border-radius: 6px;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+            transition: var(--transition);
+        }
+
+        .filmstrip-item.active {
+            border-color: var(--primary-color);
+            transform: scale(1.05);
+        }
+
+        .filmstrip-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ==========================================================================
+           LAYOUT C: "Streamlined Studio" (Баланс поточного дизайну + виправлення)
+           - Зберігає вертикальну панель праворуч, але робить її на 40% компактнішою
+           - Класична ліва колонка мініатюр з інформативними статусами
+           - Верхній рядок із чіпом Shortcuts та навігацією
+           ========================================================================== */
+        .layout-c-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .layout-c-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar-c-list {
+            width: 180px;
+            background: var(--surface-color);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-c-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-c-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sidebar-c-row:hover { background: var(--surface-hover); }
+        .sidebar-c-row.active {
+            background: var(--primary-alpha);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .sidebar-c-img {
+            width: 44px;
+            height: 34px;
+            border-radius: 4px;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .sidebar-c-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-c-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-c-sub {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Right Floating Slim Toolbar */
+        .slim-right-toolbar {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(22, 22, 28, 0.88);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 6px 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: var(--shadow-md);
+            z-index: 60;
+        }
+
+        /* Popover Modal Demo */
+        .demo-shortcuts-popover {
+            position: absolute;
+            top: 42px;
+            left: 14px;
+            width: 300px;
+            background: rgba(20, 20, 26, 0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: none;
+        }
+        .demo-shortcuts-popover.show { display: block; }
+
+        .popover-header {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-color);
+        }
+
+        .shortcut-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+
+        .kbd-key {
+            background: var(--surface-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-color);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Showcase Header with Variant Switcher -->
+    <header class="showcase-header">
+        <div class="showcase-title-box">
+            <span class="showcase-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> Design Concept Studio</span>
+            <h1 class="showcase-title">Порівняння варіантів робочого вікна анотації</h1>
+        </div>
+
+        <div class="variant-tabs">
+            <button class="variant-tab-btn active" onclick="switchVariant('variant-a')">
+                <i class="fa-solid fa-table-columns"></i> Варіант A: Top-Toolbar Studio
+                <span class="hotkey-tag">Рекомендовано</span>
+            </button>
+            <button class="variant-tab-btn" onclick="switchVariant('variant-b')">
+                <i class="fa-solid fa-shapes"></i> Варіант B: Floating Canvas
+                <span class="hotkey-tag">Figma Style</span>
+            </button>
+            <button class="variant-tab-btn" onclick="switchVariant('variant-c')">
+                <i class="fa-solid fa-bars-staggered"></i> Варіант C: Streamlined Classic
+                <span class="hotkey-tag">Еволюція</span>
+            </button>
+        </div>
+
+        <div class="showcase-actions">
+            <button class="btn-info" onclick="toggleShortcutsDemo()">
+                <i class="fa-solid fa-keyboard"></i> Тест Shortcuts Popover
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Showcase Area -->
+    <main class="showcase-workspace">
+
+        <!-- ====================================================================
+             VARIANT A: TOP-TOOLBAR STUDIO (Roboflow / Ultralytics Inspired)
+             ==================================================================== -->
+        <section id="variant-a" class="variant-view active">
+            <div class="variant-summary-bar">
+                <div class="summary-features">
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Максимальний Canvas:</b> 0 бічних плаваючих блоків, що перекривають зображення</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Верхній Toolbar:</b> Згруповані режими (Draw / Select / Pan) + Zoom + AI</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Компактні мініатюри:</b> Тонка вертикальна смуга (72px)</span>
+                </div>
+                <div><strong>Пріоритет:</strong> Висока швидкість розмітки великих датасетів</div>
+            </div>
+
+            <div class="layout-a-container">
+                <!-- Top Header Strip -->
+                <div class="top-toolbar-strip">
+                    <!-- Modes Group -->
+                    <div class="tool-group">
+                        <button class="tool-btn active" title="Bounding Box (R)"><i class="fa-solid fa-vector-square"></i> Box</button>
+                        <button class="tool-btn" title="Polygon (P)"><i class="fa-solid fa-draw-polygon"></i> Polygon</button>
+                        <button class="tool-btn" title="Magic SAM (M)"><i class="fa-solid fa-wand-magic-sparkles"></i> Magic</button>
+                        <button class="tool-btn" title="Select (V)"><i class="fa-solid fa-arrow-pointer"></i></button>
+                        <button class="tool-btn" title="Pan (H)"><i class="fa-solid fa-hand"></i></button>
+                    </div>
+
+                    <div class="tool-divider"></div>
+
+                    <!-- History / Edit Group -->
+                    <div class="tool-group">
+                        <button class="tool-btn" title="Undo (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button class="tool-btn" title="Duplicate (Ctrl+D)"><i class="fa-solid fa-copy"></i></button>
+                        <button class="tool-btn danger-hover" title="Delete (Del)"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+
+                    <div class="tool-divider"></div>
+
+                    <!-- Zoom & View Group -->
+                    <div class="tool-group">
+                        <button class="tool-btn" title="Zoom Out (-)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <button class="tool-btn" title="Reset (0)"><i class="fa-solid fa-expand"></i> 100%</button>
+                        <button class="tool-btn" title="Zoom In (+)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    </div>
+
+                    <div class="tool-divider"></div>
+
+                    <!-- AI Confidence & Pred Toggle -->
+                    <div class="tool-group">
+                        <button class="tool-btn" title="Toggle Predictions"><i class="fa-solid fa-eye"></i> AI</button>
+                        <div class="confidence-pill" title="Confidence threshold">
+                            <span>Conf: <b>0.40</b></span>
+                            <input type="range" min="0" max="1" step="0.05" value="0.4">
+                        </div>
+                    </div>
+
+                    <!-- Right Navigation & Info -->
+                    <div class="tool-group" style="margin-left: auto;">
+                        <span class="chip-badge" onclick="toggleShortcutsDemo()"><i class="fa-solid fa-keyboard"></i> Shortcuts</span>
+                        <div class="tool-divider"></div>
+                        <button class="tool-btn" title="Previous Image (A)"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-light);">12 / 148</span>
+                        <button class="tool-btn" title="Next Image (D)"><i class="fa-solid fa-chevron-right"></i></button>
+                        <button class="btn-info" title="Back to Gallery"><i class="fa-solid fa-table-cells"></i> Gallery</button>
+                    </div>
+                </div>
+
+                <!-- Main Work Area -->
+                <div class="layout-a-body">
+                    <!-- Left Compact Strip -->
+                    <aside class="compact-thumbs-sidebar">
+                        <div class="compact-thumb-card active">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' fill='%23333'><rect width='60' height='60'/><text x='30' y='35' fill='%23888' font-size='10' text-anchor='middle'>IMG 12</text></svg>">
+                            <span class="compact-thumb-id">#12</span>
+                            <span class="compact-thumb-status status-annotated"></span>
+                        </div>
+                        <div class="compact-thumb-card">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' fill='%23282828'><rect width='60' height='60'/><text x='30' y='35' fill='%23888' font-size='10' text-anchor='middle'>IMG 13</text></svg>">
+                            <span class="compact-thumb-id">#13</span>
+                            <span class="compact-thumb-status status-preannotated"></span>
+                        </div>
+                        <div class="compact-thumb-card">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' fill='%23222'><rect width='60' height='60'/><text x='30' y='35' fill='%23888' font-size='10' text-anchor='middle'>IMG 14</text></svg>">
+                            <span class="compact-thumb-id">#14</span>
+                            <span class="compact-thumb-status status-unannotated"></span>
+                        </div>
+                    </aside>
+
+                    <!-- Center Canvas Area -->
+                    <div class="canvas-area-wrapper">
+                        <div class="canvas-top-meta">
+                            <span>ID: <b>12</b></span>
+                            <span>•</span>
+                            <span>DJI_20250708125342_0092_T.JPG</span>
+                            <span>•</span>
+                            <span>1280 × 1024</span>
+                        </div>
+
+                        <div class="mock-image-stage">
+                            <!-- Selected Bounding Box Mockup -->
+                            <div class="mock-bbox">
+                                <span class="mock-bbox-tag">diode #1</span>
+                                <span class="bbox-handle handle-nw"></span>
+                                <span class="bbox-handle handle-ne"></span>
+                                <span class="bbox-handle handle-se"></span>
+                                <span class="bbox-handle handle-sw"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Dock (Classes + Approve) -->
+                <div class="bottom-class-dock">
+                    <div class="class-pills-row">
+                        <span style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-right: 4px;">Класи:</span>
+                        <div class="class-chip-pill active" style="background: #10b981;">
+                            <span>1. diode</span>
+                            <button class="class-eye-btn"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                        <div class="class-chip-pill" style="background: #3b82f6;">
+                            <span>2. solar_cell</span>
+                            <button class="class-eye-btn"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                        <div class="class-chip-pill" style="background: #f59e0b;">
+                            <span>3. hotspot</span>
+                            <button class="class-eye-btn"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                        <div class="class-chip-pill" style="background: #8b5cf6;">
+                            <span>4. crack</span>
+                            <button class="class-eye-btn"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="bottom-actions-group">
+                        <button class="btn-unapprove"><i class="fa-solid fa-xmark"></i> Unapprove</button>
+                        <button class="btn-approve"><i class="fa-solid fa-check"></i> Approve & Save (S)</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================================================
+             VARIANT B: FLOATING CANVAS (Figma / Minimalist Style)
+             ==================================================================== -->
+        <section id="variant-b" class="variant-view">
+            <div class="variant-summary-bar">
+                <div class="summary-features">
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Ультрачистий вигляд:</b> Полотно на весь екран</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Плаваючий вертикальний док:</b> Тільки піктограми найчастіших дій</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Filmstrip знизу:</b> Мініатюри не займають боковий простір</span>
+                </div>
+                <div><strong>Пріоритет:</strong> Максимальне занурення та детальний огляд об'єктів</div>
+            </div>
+
+            <div class="layout-b-container">
+                <!-- Floating Left Dock -->
+                <div class="floating-tool-dock">
+                    <button class="floating-tool-btn active" title="Bounding Box"><i class="fa-solid fa-vector-square"></i></button>
+                    <button class="floating-tool-btn" title="Polygon"><i class="fa-solid fa-draw-polygon"></i></button>
+                    <button class="floating-tool-btn" title="Magic Wand"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                    <button class="floating-tool-btn" title="Select"><i class="fa-solid fa-arrow-pointer"></i></button>
+                    <button class="floating-tool-btn" title="Pan"><i class="fa-solid fa-hand"></i></button>
+                    <div class="dock-divider"></div>
+                    <button class="floating-tool-btn" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button class="floating-tool-btn" title="Clear"><i class="fa-solid fa-trash-can"></i></button>
+                    <div class="dock-divider"></div>
+                    <button class="floating-tool-btn" title="Reset View"><i class="fa-solid fa-expand"></i></button>
+                </div>
+
+                <!-- Floating Top Bar -->
+                <div class="floating-top-header">
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 0.8rem;">
+                        <span class="chip-badge"><i class="fa-solid fa-image"></i> DJI_20250708_0092.JPG</span>
+                        <span style="color: var(--text-muted);">1280 × 1024</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="class-chip-pill active" style="background: #10b981; height: 26px; padding: 0 10px;">
+                            <span>diode</span>
+                        </div>
+                        <button class="btn-approve" style="height: 28px; padding: 0 12px;"><i class="fa-solid fa-check"></i> Approve</button>
+                    </div>
+                </div>
+
+                <!-- Canvas Full Area -->
+                <div class="canvas-area-wrapper">
+                    <div class="mock-image-stage">
+                        <div class="mock-bbox" style="top: 30%; left: 30%;">
+                            <span class="mock-bbox-tag">diode</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filmstrip Drawer Bottom -->
+                <div class="filmstrip-drawer">
+                    <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Стрічка:</span>
+                    <div class="filmstrip-scroll">
+                        <div class="filmstrip-item active"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='54' fill='%23333'><rect width='72' height='54'/><text x='36' y='30' fill='%23fff' font-size='10' text-anchor='middle'>#12</text></svg>"></div>
+                        <div class="filmstrip-item"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='54' fill='%23222'><rect width='72' height='54'/><text x='36' y='30' fill='%23888' font-size='10' text-anchor='middle'>#13</text></svg>"></div>
+                        <div class="filmstrip-item"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='54' fill='%23222'><rect width='72' height='54'/><text x='36' y='30' fill='%23888' font-size='10' text-anchor='middle'>#14</text></svg>"></div>
+                        <div class="filmstrip-item"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='54' fill='%23222'><rect width='72' height='54'/><text x='36' y='30' fill='%23888' font-size='10' text-anchor='middle'>#15</text></svg>"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================================================
+             VARIANT C: STREAMLINED CLASSIC (Еволюція поточної структури)
+             ==================================================================== -->
+        <section id="variant-c" class="variant-view">
+            <div class="variant-summary-bar">
+                <div class="summary-features">
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Збереження звичної архітектури:</b> Знайоме розташування панелей</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Справді компактний правий тулбар:</b> 42px ширина, без наповзань</span>
+                    <span class="summary-feature-item"><i class="fa-solid fa-circle-check"></i> <b>Shortcuts у верхньому рядку:</b> Не перекриває кут полотна</span>
+                </div>
+                <div><strong>Пріоритет:</strong> Мінімальний час на перенавчання</div>
+            </div>
+
+            <div class="layout-c-container">
+                <div class="layout-c-main">
+                    <!-- Left Sidebar -->
+                    <aside class="sidebar-c-list">
+                        <div class="sidebar-c-header">
+                            <span style="font-size: 0.78rem; font-weight: 700;">Зображення (148)</span>
+                            <button class="btn-info" style="padding: 2px 6px; font-size: 0.7rem;"><i class="fa-solid fa-filter"></i></button>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto;">
+                            <div class="sidebar-c-row active">
+                                <img class="sidebar-c-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='34' fill='%23333'><rect width='44' height='34'/></svg>">
+                                <div class="sidebar-c-info">
+                                    <div class="sidebar-c-title">DJI_0092_T.JPG</div>
+                                    <div class="sidebar-c-sub"><span style="color: var(--success-color);">●</span> Annotated</div>
+                                </div>
+                            </div>
+                            <div class="sidebar-c-row">
+                                <img class="sidebar-c-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='34' fill='%23222'><rect width='44' height='34'/></svg>">
+                                <div class="sidebar-c-info">
+                                    <div class="sidebar-c-title">DJI_0093_T.JPG</div>
+                                    <div class="sidebar-c-sub"><span style="color: var(--accent-purple);">●</span> Pre-annotated</div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Center Area with slim right bar -->
+                    <div class="canvas-area-wrapper" style="padding-right: 60px;">
+                        <div class="mock-image-stage">
+                            <div class="mock-bbox">
+                                <span class="mock-bbox-tag">diode</span>
+                            </div>
+                        </div>
+
+                        <!-- Slim Right Toolbar -->
+                        <div class="slim-right-toolbar">
+                            <button class="tool-btn active" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-vector-square"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-draw-polygon"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-arrow-pointer"></i></button>
+                            <div class="tool-divider" style="width: 20px; height:1px; margin: 2px auto;"></div>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-rotate-left"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-trash"></i></button>
+                            <div class="tool-divider" style="width: 20px; height:1px; margin: 2px auto;"></div>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-expand"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-eye"></i></button>
+                            <div class="tool-divider" style="width: 20px; height:1px; margin: 2px auto;"></div>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-chevron-up"></i></button>
+                            <button class="tool-btn" style="width:34px; height:34px; padding:0;"><i class="fa-solid fa-chevron-down"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Bar -->
+                <div class="bottom-class-dock">
+                    <div class="class-pills-row">
+                        <div class="class-chip-pill active" style="background: #10b981;"><span>diode</span></div>
+                        <div class="class-chip-pill" style="background: #3b82f6;"><span>solar_cell</span></div>
+                    </div>
+                    <div class="bottom-actions-group">
+                        <button class="btn-unapprove"><i class="fa-solid fa-xmark"></i> Unapprove</button>
+                        <button class="btn-approve"><i class="fa-solid fa-check"></i> Approve</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Shortcuts Popover Preview Modal -->
+        <div id="shortcuts-popover" class="demo-shortcuts-popover">
+            <div class="popover-header">
+                <span><i class="fa-solid fa-keyboard"></i> Гарячі клавіші</span>
+                <span style="cursor: pointer;" onclick="toggleShortcutsDemo()">×</span>
+            </div>
+            <div class="shortcut-item-row"><span>Прямокутник</span> <span class="kbd-key">R</span></div>
+            <div class="shortcut-item-row"><span>Полігон</span> <span class="kbd-key">P</span></div>
+            <div class="shortcut-item-row"><span>Вибір</span> <span class="kbd-key">V</span></div>
+            <div class="shortcut-item-row"><span>Панорамування</span> <span class="kbd-key">Space</span></div>
+            <div class="shortcut-item-row"><span>Approve / Save</span> <span class="kbd-key">S / Enter</span></div>
+            <div class="shortcut-item-row"><span>Вибір класу 1..9</span> <span class="kbd-key">1 - 9</span></div>
+        </div>
+
+    </main>
+
+    <script>
+        function switchVariant(variantId) {
+            document.querySelectorAll('.variant-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            document.querySelectorAll('.variant-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            const targetView = document.getElementById(variantId);
+            if (targetView) targetView.classList.add('active');
+
+            const activeBtn = Array.from(document.querySelectorAll('.variant-tab-btn')).find(b => 
+                b.getAttribute('onclick').includes(variantId)
+            );
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        function toggleShortcutsDemo() {
+            const popover = document.getElementById('shortcuts-popover');
+            popover.classList.toggle('show');
+        }
+
+        // Global key shortcut listeners for switching
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '1') switchVariant('variant-a');
+            if (e.key === '2') switchVariant('variant-b');
+            if (e.key === '3') switchVariant('variant-c');
+            if (e.key === 'Escape') {
+                document.getElementById('shortcuts-popover').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>

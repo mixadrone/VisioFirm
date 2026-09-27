@@ -3,6 +3,9 @@ import { navigateImage } from './viewManagement.js';
 
 import {
     selectedAnnotation,
+    selectedAnnotations,
+    setSelectedAnnotations,
+    clearSelectedAnnotations,
     setupType,
     annotations,
     undoStack,
@@ -26,7 +29,7 @@ import {
 } from './globals.js';
 import { drawImage, resetView } from './annotationDrawing.js';
 import { updateAnnotationSummary } from './imageHandling.js';
-import { pushToUndoStack, clampToImageBounds } from './annotationCore.js';
+import { pushToUndoStack, clampToImageBounds, clampAnnotationToBounds } from './annotationCore.js';
 
 let shortcutsInitialized = false;
 
@@ -54,11 +57,12 @@ export function initKeyboardShortcuts() {
         }
         else if (e.ctrlKey && e.key === 'c') {
             e.preventDefault();
-            if (selectedAnnotation) {
-                const copyText = JSON.stringify(selectedAnnotation);
+            const toCopy = (selectedAnnotations && selectedAnnotations.length > 0) ? selectedAnnotations : (selectedAnnotation ? [selectedAnnotation] : []);
+            if (toCopy.length > 0) {
+                const copyText = JSON.stringify(toCopy);
                 navigator.clipboard.writeText(copyText).then(() => {
                     setClipboardImageResolution({ width: currentImage.width, height: currentImage.height });
-                    console.log('Annotation copied to clipboard');
+                    console.log('Annotations copied to clipboard:', toCopy.length);
                 }).catch(err => {
                     console.error('Failed to copy annotation: ', err);
                 });
@@ -68,18 +72,28 @@ export function initKeyboardShortcuts() {
             e.preventDefault();
             navigator.clipboard.readText().then(text => {
                 try {
-                    const pastedAnnotation = JSON.parse(text);
-                    if (pastedAnnotation && pastedAnnotation.type) {
+                    const parsed = JSON.parse(text);
+                    const items = Array.isArray(parsed) ? parsed : (parsed && parsed.type ? [parsed] : []);
+                    if (items.length > 0) {
                         pushToUndoStack();
-                        const scaledAnnotation = scaleAnnotation(
-                            pastedAnnotation,
-                            clipboardImageResolution.width, clipboardImageResolution.height,
-                            currentImage.width, currentImage.height
-                        );
-                        scaledAnnotation.x += 10;
-                        scaledAnnotation.y += 10;
-                        setAnnotations([...annotations, scaledAnnotation]);
-                        setSelectedAnnotation(scaledAnnotation);
+                        const newItems = items.map(item => {
+                            const scaled = scaleAnnotation(
+                                item,
+                                clipboardImageResolution.width, clipboardImageResolution.height,
+                                currentImage.width, currentImage.height
+                            );
+                            if (scaled.type === 'rect' || scaled.type === 'obbox') {
+                                scaled.x = (scaled.x || 0) + 10;
+                                scaled.y = (scaled.y || 0) + 10;
+                                clampAnnotationToBounds(scaled);
+                            } else if (scaled.type === 'polygon' && Array.isArray(scaled.points)) {
+                                scaled.points = scaled.points.map(p => clampToImageBounds({ x: p.x + 10, y: p.y + 10 }));
+                            }
+                            return scaled;
+                        });
+                        setAnnotations([...annotations, ...newItems]);
+                        setSelectedAnnotations(newItems);
+                        updateTagHighlights();
                         drawImage();
                     }
                 } catch (err) {
@@ -91,23 +105,27 @@ export function initKeyboardShortcuts() {
         }
         else if (e.ctrlKey && e.key === 'd') {
             e.preventDefault();
-            if (selectedAnnotation) {
+            const toDuplicate = (selectedAnnotations && selectedAnnotations.length > 0) ? selectedAnnotations : (selectedAnnotation ? [selectedAnnotation] : []);
+            if (toDuplicate.length > 0) {
                 pushToUndoStack();
-                const duplicate = scaleAnnotation(
-                    selectedAnnotation,
-                    currentImage.width, currentImage.height,
-                    currentImage.width, currentImage.height
-                );
-                duplicate.x += 0.3 * duplicate.x;
-                duplicate.y += 0.3 * duplicate.y;
-                if (duplicate.type === 'rect' || duplicate.type === 'obbox') {
-                    duplicate.x = Math.max(0, Math.min(duplicate.x, currentImage.width - duplicate.width));
-                    duplicate.y = Math.max(0, Math.min(duplicate.y, currentImage.height - duplicate.height));
-                } else if (duplicate.type === 'polygon') {
-                    duplicate.points = duplicate.points.map(p => clampToImageBounds(p));
-                }
-                setAnnotations([...annotations, duplicate]);
-                setSelectedAnnotation(duplicate);
+                const duplicates = toDuplicate.map(item => {
+                    const dup = scaleAnnotation(
+                        item,
+                        currentImage.width, currentImage.height,
+                        currentImage.width, currentImage.height
+                    );
+                    if (dup.type === 'rect' || dup.type === 'obbox') {
+                        dup.x = (dup.x || 0) + 12;
+                        dup.y = (dup.y || 0) + 12;
+                        clampAnnotationToBounds(dup);
+                    } else if (dup.type === 'polygon' && Array.isArray(dup.points)) {
+                        dup.points = dup.points.map(p => clampToImageBounds({ x: p.x + 12, y: p.y + 12 }));
+                    }
+                    return dup;
+                });
+                setAnnotations([...annotations, ...duplicates]);
+                setSelectedAnnotations(duplicates);
+                updateTagHighlights();
                 drawImage();
             }
         }
@@ -123,28 +141,36 @@ export function initKeyboardShortcuts() {
             updateAnnotationSummary();
             drawImage();
         }
-        else if (e.key === 'Delete' && selectedAnnotation) {
+        else if (e.key === 'Delete' && (selectedAnnotations.length > 0 || selectedAnnotation)) {
             e.preventDefault();
+            const toDelete = selectedAnnotations.length > 0 ? selectedAnnotations : [selectedAnnotation];
             pushToUndoStack();
-            const newAnnotations = annotations.filter(a => a !== selectedAnnotation);
+            const newAnnotations = annotations.filter(a => !toDelete.includes(a));
             setAnnotations(newAnnotations);
-            setSelectedAnnotation(null);
+            clearSelectedAnnotations();
             setSelectedPointIndex(-1);
             setIsModified(true);
             updateTagHighlights();
             updateAnnotationSummary();
             drawImage();
         }
-        else if (e.key === 'Escape' && currentAnnotation) {
+        else if (e.key === 'Escape') {
             e.preventDefault();
-            if (currentAnnotation.points?.length > 2) {
-                currentAnnotation.closed = true;
-                pushToUndoStack();
-                setAnnotations([...annotations, currentAnnotation]);
-                setSelectedAnnotation(currentAnnotation);
+            if (currentAnnotation) {
+                if (currentAnnotation.points?.length > 2) {
+                    currentAnnotation.closed = true;
+                    pushToUndoStack();
+                    setAnnotations([...annotations, currentAnnotation]);
+                    setSelectedAnnotation(currentAnnotation);
+                }
+                setCurrentAnnotation(null);
+                drawImage();
+            } else if (selectedAnnotations && selectedAnnotations.length > 0) {
+                clearSelectedAnnotations();
+                setSelectedPointIndex(-1);
+                updateTagHighlights();
+                drawImage();
             }
-            setCurrentAnnotation(null);
-            drawImage();
         }
         else if (e.key === 'r' && setupType === "Oriented Bounding Box" && selectedAnnotation && (selectedAnnotation.type === 'rect' || selectedAnnotation.type === 'obbox')) {
             e.preventDefault();
@@ -232,7 +258,13 @@ export function initKeyboardShortcuts() {
                     const classIdx = parseInt(e.key, 10) - 1;
                     if (Array.isArray(config.classes) && classIdx >= 0 && classIdx < config.classes.length) {
                         const targetClass = config.classes[classIdx];
-                        if (selectedAnnotation) {
+                        if (selectedAnnotations && selectedAnnotations.length > 0) {
+                            pushToUndoStack();
+                            selectedAnnotations.forEach(ann => { ann.label = targetClass; });
+                            setSelectedClass(targetClass);
+                            drawImage();
+                            updateTagHighlights();
+                        } else if (selectedAnnotation) {
                             pushToUndoStack();
                             selectedAnnotation.label = targetClass;
                             setSelectedClass(targetClass);

@@ -1,323 +1,194 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - VisioFirm</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    
+    <!-- Theme pre-init to prevent flash of wrong theme -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('visiofirm_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+    
+    <link rel="stylesheet" href="/static/css/styles.css?v=20260928-v13">
+    <link rel="stylesheet" href="/static/css/setup.css?v=20260928-v13">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #3498db;
-            --text-color: #333;
-            --card-bg: #fff;
-            --shadow: 0 2px 4px rgba(0,0,0,0.1);
-            --transition: all 0.3s ease;
-        }
-        html, body {
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; 
-        }
-        body {
-            display: flex;
-            flex-direction: column;
-        }
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .top-bar {
-            background: var(--card-bg);
-            padding: 0 24px;
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-            height: 60px;
-            position: relative;
-            z-index: 100;
-            flex-shrink: 0;
-        }
-        
-        .top-bar img {
-            height: 40px;
-            margin-left: 16px;
-        }
-
-        main {
-            flex: 1 1 auto;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            min-height: 0; 
-            width: 100%;
-        }
-
-        .top-bar h1 a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-size: 2.25rem;
-            font-weight: 600;
-        }
-
-        .repo-link-center {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .repo-link-center a {
-            color: var(--text-color);
-            text-decoration: none;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: var(--transition);
-        }
-
-        .repo-link-center a:hover {
-            color: var(--primary-color);
-        }
-
-        .nav-links {
-            margin-left: auto;
-        }
-
-        .nav-links a {
-            color: var(--text-color);
-            text-decoration: none;
-            font-weight: 500;
-            transition: var(--transition);
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-color);
-        }
-
-        .menu-icon {
-            color: var(--text-color);
-            font-size: 24px;
-            cursor: pointer;
-            margin-right: 16px;
-            transition: var(--transition);
-        }
-
-        .menu-icon:hover {
-            color: var(--primary-color);
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 64px;
-            left: -150px;
-            width: 150px;
-            height: calc(100% - 64px);
-            background: #333333;
-            box-shadow: var(--shadow);
-            z-index: 1001;
-            transition: left 0.3s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-        }
-
-        .sidebar.open {
-            left: 0;
-        }
-
-        .sidebar-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .sidebar-header span {
-            font-weight: 500;
-            font-size: 1.2rem;
-            color: #e0e0e0;
-        }
-
-        .sidebar-menu {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            color: #e0e0e0;
-            text-decoration: none;
-            padding: 10px 0;
-            font-weight: 500;
-            transition: var(--transition);
-        }
-
-        .sidebar-menu a:hover {
-            color: #3498db;
-        }
-
-        .sidebar-menu a i {
-            margin-right: 10px;
-            font-size: 18px;
-            color: #e0e0e0;
-        }
-
-        .sidebar-menu a:hover i {
-            color: #3498db;
-        }
-
-        /* Glitch animation for Profile */
-        @keyframes glitch {
-            0% { transform: translate(0); opacity: 1; }
-            10% { transform: translate(-2px, 2px); opacity: 0.8; }
-            20% { transform: translate(2px, -2px); opacity: 0.6; }
-            30% { transform: translate(-2px, 2px); opacity: 0.8; }
-            40% { transform: translate(2px, -2px); opacity: 1; }
-            100% { transform: translate(0); opacity: 1; }
-        }
-
-        .sidebar-menu a.profile:hover i {
-            animation: glitch 0.3s linear infinite;
-        }
-
-        /* Rotate animation for Settings */
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .sidebar-menu a.settings:hover i {
-            animation: rotate 1s linear infinite;
-        }
-
-        /* Blink red animation for Logout */
-        @keyframes blink {
-            0% { color: #e0e0e0; }
-            50% { color: #ff0000; }
-            100% { color: #e0e0e0; }
-        }
-
-        .sidebar-menu a.logout:hover i {
-            animation: blink 0.5s step-end infinite;
-        }
-
-        .flash-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 1002;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-        }
-
-        .flash-modal.success {
-            border-left: 4px solid #28a745;
-        }
-
-        .flash-modal.error {
-            border-left: 4px solid #dc3545;
-        }
-
-        .flash-modal p {
-            margin: 0;
-            font-size: 16px;
-            color: #333;
-        }
-
-        .flash-modal.show {
-            display: block;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
-    <!-- Flash messages: Adapted for query params -->
+<body class="app-body">
+    <!-- Flash messages -->
     {% if request.query_params.get('flash') %}
         <div class="flash-modal {{ request.query_params.get('flash') }}">
             <p>{{ request.query_params.get('message') }}</p>
         </div>
     {% endif %}
-    <header>
-        <nav class="top-bar">
-            <div class="menu-icon">
-                <i class="fa-solid fa-bars"></i>
-            </div>
-            <h1>
-                <img src="/static/img/VisioFirm_logo.png" alt="VisioFirm Logo">
-                <a href="/">VisioFirm</a>
-            </h1>
-            <div class="repo-link-center">
-                <a href="https://github.com/OschAI/VisioFirm" target="_blank" rel="noreferrer">
-                    <i style="font-size:24px" class="fab fa-github"></i>
-                    OschAI/VisioFirm
+
+    <div class="app-layout" id="app-layout">
+        <!-- Collapsible Sidebar (VS Code style) -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-top">
+                <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle Sidebar (Ctrl+B)">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <a href="/" class="sidebar-brand" title="VisioFirm">
+                    <img src="/static/img/VisioFirm_logo.png" alt="VisioFirm" class="sidebar-logo">
+                    <span class="sidebar-brand-text">VisioFirm</span>
                 </a>
             </div>
-            <div class="nav-links">
-                <a href="/">Dashboard</a>
+
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link {% if request.url.path == '/' or request.url.path == '/dashboard' %}active{% endif %}" title="Dashboard">
+                            <span class="nav-icon"><i class="fa-solid fa-house"></i></span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://github.com/OschAI/VisioFirm" target="_blank" rel="noreferrer" class="nav-link" title="GitHub Repository">
+                            <span class="nav-icon"><i class="fa-brands fa-github"></i></span>
+                            <span class="nav-label">GitHub</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link theme-toggle-btn" id="theme-toggle" title="Switch Theme">
+                            <span class="nav-icon">
+                                <i class="fa-solid fa-moon dark-icon"></i>
+                                <i class="fa-solid fa-sun light-icon"></i>
+                            </span>
+                            <span class="nav-label theme-label">Theme</span>
+                        </button>
+                    </li>
+                    {% if user %}
+                    <li class="nav-item">
+                        <a href="/auth/profile" class="nav-link {% if '/auth/profile' in request.url.path %}active{% endif %}" title="Profile ({{ user.username }})">
+                            <span class="nav-icon"><i class="fa-solid fa-user"></i></span>
+                            <span class="nav-label">{{ user.username }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/auth/logout" class="nav-link nav-logout" title="Sign Out">
+                            <span class="nav-icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
+                            <span class="nav-label">Logout</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a href="/auth/login" class="nav-link {% if '/auth/login' in request.url.path %}active{% endif %}" title="Sign In">
+                            <span class="nav-icon"><i class="fa-solid fa-arrow-right-to-bracket"></i></span>
+                            <span class="nav-label">Sign In</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
-        </nav>
-        <div class="sidebar">
-            <div class="sidebar-header">
-                {% if user %}
-                    <span>{{ user.username }}</span>
-                {% else %}
-                    <span>Guest</span>
-                {% endif %}
-            </div>
-            <div class="sidebar-menu">
-                {% if user %}
-                    <a href="/auth/profile" class="profile"><i class="fa-solid fa-user"></i> Profile</a>
-                    <a href="/auth/logout" class="logout"><i class="fa-solid fa-sign-out-alt"></i> Logout</a>
-                {% else %}
-                    <a href="/auth/login"><i class="fa-solid fa-sign-in-alt"></i> Sign In</a>
-                    <a href="/auth/register"><i class="fa-solid fa-user-plus"></i> Sign Up</a>
-                {% endif %}
-            </div>
+        </aside>
+
+        <!-- Main Wrapper (Top Header + Page Content) -->
+        <div class="app-main-wrapper">
+            <!-- Sleek Top Header -->
+            <header class="app-top-header">
+                <div class="header-left">
+                    <div class="breadcrumb-container">
+                        {% block breadcrumb %}
+                        <a href="/" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Home</a>
+                        <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+                        <span class="breadcrumb-current">{% block page_name %}Dashboard{% endblock %}</span>
+                        {% endblock %}
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    {% block header_actions %}{% endblock %}
+                    
+                    <button type="button" class="header-icon-btn" id="header-theme-toggle" title="Switch theme">
+                        <i class="fa-solid fa-moon dark-icon"></i>
+                        <i class="fa-solid fa-sun light-icon"></i>
+                    </button>
+
+                    {% if user %}
+                    <div class="user-badge" title="{{ user.username }}">
+                        <span class="user-avatar">{{ user.username[:1].upper() }}</span>
+                        <span class="user-name">{{ user.username }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- Page Main Content Area -->
+            <main class="app-page-content">
+                {% block content %}{% endblock %}
+            </main>
         </div>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+    </div>
+
+    <!-- Core Layout & Theme Scripts -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const menuIcon = document.querySelector('.menu-icon');
-            const sidebar = document.querySelector('.sidebar');
-            const flashModals = document.querySelectorAll('.flash-modal');
-            
-            menuIcon.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-            });
+            const layout = document.getElementById('app-layout');
+            const sidebar = document.getElementById('app-sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const themeToggles = [
+                document.getElementById('theme-toggle'),
+                document.getElementById('header-theme-toggle')
+            ].filter(Boolean);
 
-            // Close sidebar when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!sidebar.contains(e.target) && !menuIcon.contains(e.target)) {
-                    sidebar.classList.remove('open');
+            // 1. Sidebar collapse state handling (localStorage)
+            const isCollapsed = localStorage.getItem('visiofirm_sidebar_collapsed') === 'true';
+            if (isCollapsed && sidebar) {
+                sidebar.classList.add('collapsed');
+            }
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('collapsed');
+                    const collapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('visiofirm_sidebar_collapsed', collapsed);
+                });
+            }
+
+            // Keyboard shortcut Ctrl+B / Cmd+B for sidebar toggle
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                    e.preventDefault();
+                    if (sidebarToggle) sidebarToggle.click();
                 }
             });
 
-            // Show and auto-dismiss flash modals
+            // 2. Theme switcher (Dark / Light)
+            function updateTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('visiofirm_theme', theme);
+            }
+
+            themeToggles.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    updateTheme(newTheme);
+                });
+            });
+
+            // 3. Flash modals auto-dismiss
+            const flashModals = document.querySelectorAll('.flash-modal');
             flashModals.forEach(modal => {
                 modal.classList.add('show');
                 setTimeout(() => {
                     modal.classList.remove('show');
-                    setTimeout(() => modal.remove(), 300); // Remove after fade-out
-                }, 3000);
+                    setTimeout(() => modal.remove(), 300);
+                }, 3500);
             });
         });
     </script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

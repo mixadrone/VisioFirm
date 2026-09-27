@@ -1,8 +1,17 @@
 {% extends "base.html" %}
 {% block title %}{{ project_name }} - Annotation{% endblock %}
+
+{% block breadcrumb %}
+<a href="/" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Home</a>
+<span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+<a href="/dashboard" class="breadcrumb-link">Projects</a>
+<span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+<span class="breadcrumb-current">{{ project_name }}</span>
+{% endblock %}
+
 {% block content %}
 <script>
-    // Show spinner immediately
+    // Spinner helper styles (only display when .active)
     const spinnerStyles = `
         .loading-overlay {
             position: fixed;
@@ -10,11 +19,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 2000;
+        }
+        .loading-overlay.active {
+            display: flex;
         }
         .vf-loader {
             position: relative;
@@ -28,24 +40,6 @@
     const styleElement = document.createElement('style');
     styleElement.textContent = spinnerStyles;
     document.head.appendChild(styleElement);
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.id = 'loading-overlay';
-    loadingOverlay.className = 'loading-overlay';
-    loadingOverlay.innerHTML = `
-        <div class="vf-loader" id="vf-loader">
-            <!-- Your spinner content here (dots, rings, etc.) -->
-            <div class="dot dot-1"></div>
-            <div class="dot dot-2"></div>
-            <div class="dot dot-3"></div>
-            <div class="dot dot-4"></div>
-            <div class="dot dot-5"></div>
-            <div class="dot dot-6"></div>
-            <div class="dot dot-7"></div>
-            <div class="dot dot-8"></div>
-            <p style="color: white; margin-top: 20px;">Loading Project...</p>
-        </div>
-    `;
-    document.body.appendChild(loadingOverlay);
 </script>
 <style>
     .avatar {
@@ -195,24 +189,53 @@
     width: 100%; /* Ensure it takes full available width */
 }
 
-/* Make class-selector scrollable and take 90% width */
+/* Clean class chips row without ugly scrollbars or arrows */
 .class-selector {
-    width: 85%; /* 90% of control-panel width */
-    max-height: 30vh; /* Constrain height to fit viewport; adjust as needed */
-    overflow-y: hidden; /* Prevent vertical scrolling */
-    overflow-x: auto; /* Allow horizontal scrolling if many tags */
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
     display: flex;
-    flex-direction: row; /* keep tags in a single row */
+    flex-direction: row;
     align-items: center;
 }
 
+.class-selector::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+}
+
 #class-tags-container {
-    display: flex;
-    flex-wrap: nowrap; /* force single row */
-    gap: 10px;
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 8px;
     align-items: center;
-    height: auto;
-    overflow-x: auto;
+    height: 100%;
+    padding: 0 4px;
+    overflow: visible;
+}
+
+#class-tags-container .class-tag {
+    flex-shrink: 0;
+    margin: 0;
+    border-radius: 999px;
+    padding: 4px 10px 4px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#annotation-view .control-panel {
+    height: 52px;
+    min-height: 52px;
 }
 
 .classes-left {
@@ -268,19 +291,22 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
-        margin-left: 6px;
+        width: 18px;
+        height: 18px;
+        margin-left: 4px;
         border: none;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.42);
-        color: #111827;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.95);
         cursor: pointer;
         flex-shrink: 0;
+        font-size: 0.65rem;
+        transition: background 0.15s ease, transform 0.15s ease;
     }
 
     .class-visibility-btn:hover {
-        background: rgba(255, 255, 255, 0.7);
+        background: rgba(0, 0, 0, 0.4);
+        transform: scale(1.1);
     }
 
     .hidden-class-tag {
@@ -371,19 +397,7 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    /* Reduce size of shortcuts toggle button */
-    .shortcuts-sidebar .shortcuts-toggle {
-        font-size: 0.85rem; /* slightly smaller text */
-        padding: 6px 8px; /* smaller padding */
-        height: 30px;
-        line-height: 1; /* tighten vertical spacing */
-        border-radius: 0px;
-    }
 
-    .shortcuts-sidebar .shortcuts-toggle i {
-        margin-right: 6px; /* keep small gap between icon and text */
-        font-size: 0.9em; /* scale down the icon a bit */
-    }
 
     #ai-preannotator-modal h2 {
         color: #2c3e50;
@@ -651,10 +665,1653 @@
         width: min(25%, 760px);
         max-width: min(30%, 760px);
     }
+
+    /* Ultralytics HUB style Project View Header */
+    .project-view-header {
+        background: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pvh-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .pvh-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: var(--primary-alpha);
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .pvh-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .pvh-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .pvh-chip {
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .pvh-type-chip {
+        background: var(--surface-hover);
+        color: var(--primary-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .pvh-status-chip {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success-color);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .pvh-status-chip i {
+        font-size: 0.5rem;
+    }
+
+    .pvh-stats-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.82rem;
+        color: var(--text-light);
+        margin-top: 4px;
+    }
+
+    .pvh-dot {
+        opacity: 0.5;
+    }
+
+    /* Ultralytics HUB Project Navigation & Filter Pills */
+    .project-tabs-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 24px;
+        background: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .project-tab-btn {
+        padding: 12px 16px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text-light);
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: var(--transition);
+    }
+
+    .project-tab-btn:hover {
+        color: var(--text-color);
+    }
+
+    .project-tab-btn.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+    }
+
+    .tab-badge {
+        font-size: 0.72rem;
+        background: var(--surface-hover);
+        padding: 2px 6px;
+        border-radius: 10px;
+        color: var(--text-light);
+    }
+
+    /* Status Filter Pills (Ultralytics HUB style) */
+    .filter-pills-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 10px 24px;
+        background: var(--bg-color);
+        border-bottom: 1px solid var(--border-color);
+        justify-content: space-between;
+    }
+
+    .pills-left-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-class-select {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        outline: none;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .toolbar-class-select:focus, .toolbar-class-select:hover {
+        border-color: var(--primary-color);
+    }
+
+    .toolbar-class-select option {
+        background: var(--surface-color);
+        color: var(--text-color);
+    }
+
+    .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--border-color);
+        margin: 0 4px;
+    }
+
+    .pills-group {
+        display: inline-flex;
+        align-items: center;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        padding: 3px;
+        gap: 2px;
+    }
+
+    .status-pill {
+        padding: 5px 12px;
+        border-radius: 20px;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: var(--transition);
+    }
+
+    .status-pill:hover {
+        color: var(--text-color);
+        background: var(--surface-hover);
+    }
+
+    .status-pill.active {
+        background: var(--surface-hover);
+        color: var(--text-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .pill-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .pill-dot.dot-all { background: #94a3b8; }
+    .pill-dot.dot-annotated { background: #10b981; }
+    .pill-dot.dot-preannotated { background: #8b5cf6; }
+    .pill-dot.dot-unannotated { background: #f59e0b; }
+
+    .pills-right-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .image-search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .image-search-box .search-icon {
+        position: absolute;
+        left: 10px;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .image-search-input {
+        padding: 6px 12px 6px 30px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 0.84rem;
+        color: var(--text-color);
+        outline: none;
+        width: 180px;
+        transition: var(--transition);
+    }
+
+    .image-search-input:focus {
+        border-color: var(--primary-color);
+        width: 230px;
+    }
+
+    .view-toggle-group {
+        display: inline-flex;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 2px;
+        gap: 2px;
+    }
+
+    .view-toggle-btn {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .view-toggle-btn:hover {
+        color: var(--text-color);
+    }
+
+    .view-toggle-btn.active {
+        background: var(--surface-hover);
+        color: var(--primary-color);
+    }
+
+    .project-tab-panel {
+        display: none;
+        padding: 24px;
+        background: var(--bg-color);
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .project-tab-panel.active {
+        display: block;
+    }
+
+    .classes-panel-card, .charts-panel-card, .models-panel-card {
+        width: 100%;
+        min-width: 0;
+        align-self: flex-start;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 24px;
+        max-width: 1000px;
+        margin: 0 auto 24px auto;
+        box-shadow: var(--shadow);
+    }
+
+    .panel-header-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .classes-grid-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .class-item-chip {
+        padding: 8px 16px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        color: var(--text-color);
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .charts-grid-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 20px;
+        margin-top: 16px;
+    }
+
+    @media (max-width: 860px) {
+        .charts-grid-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .chart-box-container {
+        min-width: 0;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 380px;
+    }
+
+    .pvh-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-color);
+    }
+
+    .pvh-action-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--text-muted);
+    }
+
+    .pvh-action-btn.primary {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #ffffff;
+    }
+
+    .pvh-action-btn.primary:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 12px var(--primary-alpha);
+    }
+
+    /* Annotation View Layout & Dark Canvas Polish */
+    #annotation-view {
+        background: var(--bg-color);
+    }
+
+    /* Option A Studio Polish */
+    #annotation-view {
+        background: var(--bg-color);
+    }
+
+    .image-container {
+        background: #09090c !important;
+        padding: 0 !important;
+    }
+
+    .shortcuts-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        background: var(--surface-hover);
+        color: var(--text-light);
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        height: 24px;
+        line-height: 1;
+        flex-shrink: 0;
+        user-select: none;
+    }
+
+    .shortcuts-toggle:hover, .shortcuts-toggle[aria-expanded="true"] {
+        background: var(--primary-alpha);
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .shortcuts-sidebar {
+        position: absolute;
+        top: 50px;
+        right: 80px;
+        left: auto;
+        width: 360px;
+        max-height: 480px;
+        background: rgba(18, 18, 24, 0.96) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .shortcuts-sidebar.collapsed {
+        display: none !important;
+    }
+
+    /* Bottom Control Panel & Class Selector */
+    .control-panel {
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        padding: 0 14px;
+        align-items: center;
+    }
+
+    .approve-btn {
+        height: 32px;
+        min-height: 32px;
+        padding: 0 16px;
+        background: var(--primary-color);
+        color: #ffffff;
+        border: none;
+        border-radius: 7px;
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px var(--primary-alpha);
+    }
+
+    .approve-btn:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 12px var(--primary-alpha);
+    }
+
+    .unapprove-btn {
+        height: 32px;
+        min-height: 32px;
+        border-radius: 7px;
+        padding: 0 14px;
+        font-size: 0.82rem;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text-light);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: var(--transition);
+    }
+
+    .unapprove-btn:hover:not(:disabled) {
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+        background: rgba(239, 68, 68, 0.08);
+    }
+
+    .unapprove-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    /* Ultralytics HUB-Style Modern Grid Action Toolbar */
+    .grid-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 24px;
+        background: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+        flex-wrap: wrap;
+    }
+
+    .bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .grid-btn, .layout-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        border: 1px solid var(--border-color);
+        background: var(--bg-color);
+        color: var(--text-color);
+    }
+
+    .grid-btn:hover:not(:disabled), .layout-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--text-muted);
+        color: var(--text-color);
+    }
+
+    .grid-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .grid-btn.primary, .layout-btn.primary {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #ffffff;
+    }
+
+    .grid-btn.primary:hover:not(:disabled) {
+        background: var(--primary-hover);
+        box-shadow: 0 2px 8px var(--primary-alpha);
+    }
+
+    .grid-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dropdown-content {
+        background-color: var(--surface-color) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: var(--shadow-lg) !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+    }
+
+    .dropdown-content a {
+        color: var(--text-color) !important;
+        font-size: 0.82rem !important;
+        padding: 8px 12px !important;
+        border-radius: 6px !important;
+        transition: var(--transition) !important;
+    }
+
+    .dropdown-content a:hover {
+        background-color: var(--surface-hover) !important;
+    }
+
+    .dropdown-content a.active {
+        background-color: var(--primary-alpha) !important;
+        color: var(--primary-color) !important;
+        font-weight: 600 !important;
+    }
+
+    /* Modal Dark Theme Enhancements */
+    .modal {
+        background-color: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-content {
+        background: var(--surface-color) !important;
+        color: var(--text-color) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: var(--shadow-lg) !important;
+        border-radius: 16px !important;
+    }
+
+    #ai-preannotator-modal .modal-content.ai-modal-content,
+    #blind-trust-modal .modal-content.ai-modal-content {
+        background: var(--surface-color) !important;
+        color: var(--text-color) !important;
+        border: 1px solid var(--border-color) !important;
+    }
+
+    #ai-preannotator-modal h2,
+    #blind-trust-modal h2,
+    .modal-title {
+        color: var(--text-color) !important;
+    }
+
+    #ai-preannotator-modal .form-group label,
+    #blind-trust-modal .form-group label {
+        color: var(--text-color) !important;
+    }
+
+    #ai-preannotator-modal .mode-btn {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-light) !important;
+    }
+
+    #ai-preannotator-modal .mode-btn.active {
+        background: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 14px var(--primary-alpha) !important;
+    }
+
+    #ai-preannotator-modal select,
+    #ai-preannotator-modal input[type="number"],
+    #ai-preannotator-modal input[type="text"],
+    #blind-trust-modal input[type="number"],
+    #custom-model-select {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    #custom-model-select option,
+    #custom-model-select optgroup {
+        background: var(--surface-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    /* Export Format Cards - Dark Studio Theme */
+    .format-options {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+        gap: 16px !important;
+        margin-bottom: 24px !important;
+        align-items: stretch !important;
+    }
+
+    .format-card {
+        position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        background: var(--surface-color) !important;
+        border: 1.5px solid var(--border-color) !important;
+        border-radius: 14px !important;
+        padding: 24px 16px 20px 16px !important;
+        cursor: pointer !important;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                    background 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        color: var(--text-color) !important;
+        user-select: none !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .format-card:hover {
+        transform: translateY(-4px) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+        background: var(--surface-hover) !important;
+    }
+
+    .format-card.selected {
+        border-color: var(--primary-color) !important;
+        background: rgba(99, 102, 241, 0.08) !important;
+        box-shadow: 0 0 0 1px var(--primary-color), 0 8px 24px var(--primary-alpha) !important;
+    }
+
+    .format-badge-recommended {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: #ffffff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 3px 8px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+        z-index: 2;
+    }
+
+    .format-badge-recommended i {
+        font-size: 0.6rem;
+        color: #fde047;
+    }
+
+    .format-card-check {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border-color);
+        background: var(--bg-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.68rem;
+        color: transparent;
+        transition: all 0.2s ease;
+        z-index: 2;
+    }
+
+    .format-card:hover .format-card-check {
+        border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .format-card.selected .format-card-check {
+        border-color: var(--primary-color);
+        background: var(--primary-color);
+        color: #ffffff;
+        box-shadow: 0 0 8px var(--primary-alpha);
+    }
+
+    .format-logo-box {
+        width: 100%;
+        max-width: 124px;
+        height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        margin: 6px auto 14px auto;
+        padding: 8px 12px;
+        transition: var(--transition);
+        box-sizing: border-box;
+    }
+
+    .format-card:hover .format-logo-box {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    .format-card.selected .format-logo-box {
+        border-color: rgba(99, 102, 241, 0.35);
+        background: rgba(255, 255, 255, 0.09);
+    }
+
+    .format-logo-box img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+        border-radius: 4px;
+        display: block;
+    }
+
+    .format-card-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 6px;
+    }
+
+    .format-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .format-card-title {
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        color: var(--text-color) !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    .format-tag-badge {
+        font-size: 0.66rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tag-yolo {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .tag-json {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .tag-xml {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .tag-csv {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .tag-mask {
+        background: rgba(236, 72, 153, 0.15);
+        color: #f472b6;
+        border: 1px solid rgba(236, 72, 153, 0.25);
+    }
+
+    .format-card-desc {
+        font-size: 0.8rem !important;
+        color: var(--text-light) !important;
+        line-height: 1.45 !important;
+        margin: 4px 0 0 0 !important;
+        text-align: center !important;
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .cancel-btn {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    .cancel-btn:hover {
+        background: var(--surface-hover) !important;
+    }
+
+    .close-btn {
+        color: var(--text-light) !important;
+    }
+
+    .close-btn:hover {
+        color: var(--text-color) !important;
+    }
+
+    /* Export Inline Tab Dark Theme Styling */
+    #tab-content-export .tab-nav {
+        border-bottom: 1px solid var(--border-color) !important;
+        margin-bottom: 14px !important;
+    }
+
+    #tab-content-export .tab-link {
+        color: var(--text-light) !important;
+        font-weight: 600 !important;
+        padding: 8px 16px !important;
+        font-size: 0.84rem !important;
+        border-bottom: 2px solid transparent !important;
+        transition: var(--transition) !important;
+    }
+
+    #tab-content-export .tab-link:hover {
+        color: var(--text-color) !important;
+    }
+
+    #tab-content-export .tab-link.active {
+        color: var(--primary-color) !important;
+        border-bottom-color: var(--primary-color) !important;
+    }
+
+    /* Split Tab Modernized Styling */
+    .split-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .split-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .split-toggle-label {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 38px;
+        height: 20px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider.round {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid var(--border-color);
+        transition: var(--transition);
+        border-radius: 20px;
+    }
+
+    .slider.round:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 2px;
+        bottom: 2px;
+        background-color: #ffffff;
+        transition: var(--transition);
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    input:checked + .slider.round {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-alpha);
+    }
+
+    input:checked + .slider.round:before {
+        transform: translateX(18px);
+    }
+
+    .split-presets-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: opacity 0.2s ease;
+    }
+
+    .presets-label {
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .presets-pills {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 2px 3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .presets-pills .preset-chip {
+        padding: 3px 10px;
+        border-radius: 16px;
+        border: none;
+        background: transparent;
+        color: var(--text-light);
+        font-size: 0.76rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: var(--transition);
+        line-height: 1;
+    }
+
+    .presets-pills .preset-chip:hover {
+        color: var(--text-color);
+        background: var(--surface-hover);
+    }
+
+    .presets-pills .preset-chip.active {
+        background: var(--surface-hover);
+        color: var(--text-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .pill-dot.dot-preset-1 { background: #6366f1; box-shadow: 0 0 5px rgba(99, 102, 241, 0.6); }
+    .pill-dot.dot-preset-2 { background: #38bdf8; box-shadow: 0 0 5px rgba(56, 189, 248, 0.6); }
+    .pill-dot.dot-preset-3 { background: #f59e0b; box-shadow: 0 0 5px rgba(245, 158, 11, 0.6); }
+
+    .split-distribution-wrapper {
+        margin-bottom: 12px;
+    }
+
+    .split-dist-bar {
+        width: 100%;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        user-select: none;
+    }
+
+    .dist-segment {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #ffffff;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        white-space: nowrap;
+        padding: 0 6px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        box-sizing: border-box;
+        user-select: none;
+    }
+
+    .segment-train {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    }
+
+    .segment-val {
+        background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    }
+
+    .segment-test {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .dist-segment .segment-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.74rem;
+        opacity: 0.95;
+        background: transparent !important;
+    }
+
+    .split-pill-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .dot-train { background: #6366f1; box-shadow: 0 0 6px rgba(99, 102, 241, 0.6); }
+    .dot-val { background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.6); }
+    .dot-test { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+
+    .split-ratios {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .ratio-control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 12px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: var(--transition);
+        box-sizing: border-box;
+    }
+
+    .ratio-control:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .ratio-label-group {
+        display: flex;
+        align-items: center;
+        min-width: 125px;
+        flex-shrink: 0;
+    }
+
+    .ratio-label-inner.static-split {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding-left: 21px; /* aligns dot with checkboxes below */
+    }
+
+    .ratio-label-group label,
+    .ratio-label-inner label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .ratio-checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        margin: 0;
+        user-select: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-color);
+        transition: var(--transition);
+    }
+
+    .ratio-checkbox-label input[type="checkbox"] {
+        accent-color: var(--primary-color);
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .ratio-control.disabled-split {
+        opacity: 0.5;
+    }
+
+    .ratio-control.disabled-split .ratio-slider-wrap,
+    .ratio-control.disabled-split .ratio-input-wrap {
+        opacity: 0.25;
+        pointer-events: none;
+    }
+
+    .ratio-slider-wrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    .custom-range {
+        width: 100%;
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        cursor: pointer;
+    }
+
+    .range-train { accent-color: #6366f1; }
+    .range-val { accent-color: #38bdf8; }
+    .range-test { accent-color: #f59e0b; }
+
+    .ratio-input-wrap {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ratio-input-wrap input[type="number"] {
+        width: 52px !important;
+        height: 28px !important;
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 5px !important;
+        color: var(--text-color) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        padding: 2px 4px !important;
+        outline: none !important;
+        transition: var(--transition) !important;
+        box-sizing: border-box !important;
+    }
+
+    .ratio-input-wrap input[type="number"]:focus {
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 2px var(--primary-alpha) !important;
+    }
+
+    .ratio-unit {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .ratio-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .ratio-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 16px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+
+    .ratio-status-badge.valid {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #10b981;
+    }
+
+    .ratio-status-badge.invalid {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+    }
+
+    .badge-status-text {
+        font-size: 0.74rem;
+        opacity: 0.85;
+    }
+
+    .ratio-error {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #f87171;
+        font-size: 0.78rem;
+        font-weight: 500;
+    }
+
+    /* Save Options Cards Grid */
+    #tab-content-export .save-options {
+        background: var(--surface-color) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+    }
+
+    .save-options-title {
+        font-size: 0.84rem !important;
+        font-weight: 700 !important;
+        color: var(--text-color) !important;
+        margin-bottom: 8px !important;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .save-options-title i {
+        color: var(--primary-color);
+    }
+
+    .save-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+    }
+
+    .save-option-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--bg-color);
+        border: 1.5px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: var(--transition);
+        user-select: none;
+    }
+
+    .save-option-card input[type="radio"] {
+        display: none;
+    }
+
+    .save-option-card:hover {
+        background: var(--surface-hover);
+        border-color: rgba(255, 255, 255, 0.18);
+        transform: translateY(-1px);
+    }
+
+    .save-option-card.selected {
+        border-color: var(--primary-color);
+        background: rgba(99, 102, 241, 0.08);
+        box-shadow: 0 0 0 1px var(--primary-color), 0 3px 10px var(--primary-alpha);
+    }
+
+    .save-card-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-light);
+        transition: var(--transition);
+    }
+
+    .save-option-card.selected .icon-download {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+    }
+
+    .save-option-card.selected .icon-path {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+    }
+
+    .save-card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .save-card-title {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .save-card-desc {
+        font-size: 0.7rem;
+        color: var(--text-light);
+        line-height: 1.25;
+        margin-top: 1px;
+    }
+
+    .save-card-radio-indicator {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        color: transparent;
+        transition: var(--transition);
+        flex-shrink: 0;
+    }
+
+    .save-option-card.selected .save-card-radio-indicator {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #ffffff;
+        box-shadow: 0 0 6px var(--primary-alpha);
+    }
+
+    #tab-content-export .next-btn,
+    #tab-content-export .back-btn {
+        background: var(--surface-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+        border-radius: 7px !important;
+        font-weight: 600 !important;
+        padding: 0 12px !important;
+        height: 32px !important;
+        font-size: 0.8rem !important;
+        transition: var(--transition) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    #tab-content-export .next-btn:hover:not(:disabled),
+    #tab-content-export .back-btn:hover {
+        background: var(--surface-hover) !important;
+        border-color: var(--text-muted) !important;
+    }
+
+    #tab-content-export .next-btn:disabled {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+    }
+
+    #tab-content-export #confirm-export {
+        height: 32px !important;
+        padding: 0 14px !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Settings Tab Inline Styling */
+    #tab-content-settings .style-tab-header {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 12px;
+    }
+
+    #tab-content-settings .style-tab-btn {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    #tab-content-settings .style-tab-btn:hover {
+        color: var(--text-color);
+        background: var(--surface-hover);
+        border-color: var(--text-muted);
+    }
+
+    #tab-content-settings .style-tab-btn.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #ffffff;
+    }
+
+    #tab-content-settings .style-defaults-grid label {
+        color: var(--text-color) !important;
+    }
+
+    #tab-content-settings .style-defaults-grid input,
+    #tab-content-settings .style-defaults-grid select,
+    #tab-content-settings #annotation-style-json-editor {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+        border-radius: 8px !important;
+    }
+
+    #tab-content-settings .style-class-table-wrapper {
+        border-color: var(--border-color) !important;
+        background: var(--bg-color) !important;
+    }
+
+    #tab-content-settings .style-class-table {
+        background: var(--bg-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    #tab-content-settings .style-class-table th {
+        background: var(--surface-color) !important;
+        color: var(--text-light) !important;
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    #tab-content-settings .style-class-table td {
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    #tab-content-settings .style-class-table input,
+    #tab-content-settings .style-class-table select {
+        background: var(--surface-color) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    #tab-content-settings .workflow-setting-card {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 16px 20px !important;
+        margin-bottom: 14px !important;
+    }
+
+    #tab-content-settings .workflow-switch-title {
+        color: var(--text-color) !important;
+    }
+
+    #tab-content-settings .workflow-setting-desc {
+        color: var(--text-light) !important;
+    }
+
+    #tab-content-settings #annotation-style-json-editor {
+        width: 100%;
+        min-height: 280px;
+        font-family: monospace;
+        padding: 12px;
+        resize: vertical;
+    }
 </style>
-    <!-- Grid View -->
-    <div id="grid-view" class="view-container grid-view">
-        <div class="grid-header">
+    <!-- Ultralytics HUB-inspired Project Header Banner -->
+    <div class="project-view-header">
+        <div class="pvh-left">
+            <div class="pvh-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="pvh-title-group">
+                <div class="pvh-title-row">
+                    <h1 class="pvh-title">{{ project_name }}</h1>
+                    <span class="pvh-chip pvh-type-chip">{{ setup_type }}</span>
+                    <span class="pvh-chip pvh-status-chip"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+                <div class="pvh-stats-row">
+                    <span><i class="fa-regular fa-images"></i> {{ images|length }} images</span>
+                    <span class="pvh-dot">•</span>
+                    <span><i class="fa-solid fa-tags"></i> {{ classes|length }} classes</span>
+                </div>
+            </div>
+        </div>
+        <div class="pvh-right">
+            <button type="button" id="viewport-btn-top" class="pvh-action-btn primary" title="Open Annotation Canvas">
+                <i class="fa-solid fa-pen-ruler"></i>
+                <span>Open Canvas</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Project Tabs (Images / Classes / Charts / Models) -->
+    <div class="project-tabs-bar">
+        <button type="button" class="project-tab-btn active" data-tab-target="images">
+            <i class="fa-regular fa-images"></i>
+            <span>Images</span>
+            <span class="tab-badge">{{ images|length }}</span>
+        </button>
+        <button type="button" class="project-tab-btn" data-tab-target="classes">
+            <i class="fa-solid fa-tags"></i>
+            <span>Classes</span>
+            <span class="tab-badge">{{ classes|length }}</span>
+        </button>
+        <button type="button" class="project-tab-btn" data-tab-target="charts">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Charts</span>
+        </button>
+        <button type="button" class="project-tab-btn" data-tab-target="models">
+            <i class="fa-solid fa-robot"></i>
+            <span>Models</span>
+        </button>
+        <button type="button" class="project-tab-btn" data-tab-target="export" id="tab-btn-export">
+            <i class="fa-solid fa-file-export"></i>
+            <span>Export</span>
+        </button>
+        <button type="button" class="project-tab-btn" data-tab-target="settings" id="tab-btn-settings">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </button>
+    </div>
+
+    <!-- Filter & Action Toolbar (Ultralytics HUB style) -->
+    {% set count_all = images|length %}
+    {% set count_annotated = images|selectattr('annotated', 'true')|list|length %}
+    {% set count_preannotated = images|selectattr('preannotated', 'true')|list|length %}
+    {% set count_unannotated = count_all - count_annotated - count_preannotated %}
+    <div id="tab-content-images" class="project-tab-panel active">
+    <div class="filter-pills-row" id="filter-pills-row">
+        <div class="pills-left-group">
+            <div class="pills-group">
+                <button type="button" class="status-pill active" data-filter="all">
+                    <span class="pill-dot dot-all"></span>
+                    <span>All</span>
+                    <strong>{{ count_all }}</strong>
+                </button>
+                <button type="button" class="status-pill" data-filter="annotated">
+                    <span class="pill-dot dot-annotated"></span>
+                    <span>Annotated</span>
+                    <strong>{{ count_annotated }}</strong>
+                </button>
+                <button type="button" class="status-pill" data-filter="preannotated">
+                    <span class="pill-dot dot-preannotated"></span>
+                    <span>Pre-Annotated</span>
+                    <strong>{{ count_preannotated }}</strong>
+                </button>
+                <button type="button" class="status-pill" data-filter="unannotated">
+                    <span class="pill-dot dot-unannotated"></span>
+                    <span>Not Annotated</span>
+                    <strong>{{ count_unannotated if count_unannotated > 0 else 0 }}</strong>
+                </button>
+            </div>
+
+            <!-- Class Filter Combobox -->
+            <select id="class-filter" class="toolbar-class-select" title="Filter by Class">
+                <option value="all">All Classes</option>
+                {% for cls in classes %}
+                <option value="{{ cls }}">{{ cls }}</option>
+                {% endfor %}
+            </select>
+
+            <span class="toolbar-divider"></span>
+
+            <!-- Bulk Actions -->
             <div class="bulk-actions">
                 <button class="grid-btn" id="select-all-btn" title="Select All">
                     <i class="fas fa-check-square"></i> Select All
@@ -668,56 +2325,99 @@
                 <button class="grid-btn" id="import-images-btn" title="Import More Images">
                     <i class="fas fa-upload"></i> Import
                 </button>
-                <button class="grid-btn" id="export-btn" title="Export Annotations">
-                    <i class="fas fa-file-export"></i> Export
-                </button>
             </div>
-            <div class="grid-controls">
-                <div class="dropdown image-list-dropdown">
-                    <button id="filter-btn" class="layout-btn" title="Filter: All Images">
-                        <i class="fas fa-filter" aria-hidden="true"></i> <span class="image-list-control-label">All Images</span>
-                    </button>
-                    <div class="dropdown-content">
-                        <a href="#" data-filter="all">All Images</a>
-                        <a href="#" data-filter="annotated">Annotated</a>
-                        <a href="#" data-filter="preannotated">Pre-Annotated</a>
-                        <a href="#" data-filter="unannotated">Not Annotated</a>
-                    </div>
-                </div>
-                <div class="dropdown image-list-dropdown">
-                    <button id="sort-btn" class="layout-btn" title="Rearrange List">
-                        <i class="fas fa-sort"></i> Sort
-                    </button>
-                    <div class="dropdown-content">
-                        <a href="#" data-sort="name-asc">Name (1-9, A-Z)</a>
-                        <a href="#" data-sort="name-desc">Name (Z-A, 9-1)</a>
-                        <a href="#" data-sort="date-asc">Date (Oldest First)</a>
-                        <a href="#" data-sort="date-desc">Date (Newest First)</a>
-                        <a href="#" data-sort="status-asc">Status (Annotated First)</a>
-                        <a href="#" data-sort="status-desc">Status (Unannotated First)</a>
-                        <a href="#" data-sort="status-pre">Status (Pre-Annotated First)</a>
-                    </div>
-                </div>
-                <button id="grid-toggle-btn" class="layout-btn active" title="Grid View" data-view="grid">
-                    <i class="fas fa-th"></i> Grid
-                </button>
-                <button id="list-toggle-btn" class="layout-btn" title="List View" data-view="list">
-                    <i class="fas fa-list"></i> List
-                </button>
-            </div>
-            <button id="ai-preannotator-btn" class="layout-btn ai-preannotator-btn" title="AI Pre-annotator">
-                <i class="fas fa-robot"></i> AI Pre-annotator
-            </button>
-            <button id="ai-blind-trust" class="layout-btn ai-blind-trust" title="Blind Trust">
-                <i class="fa-solid fa-fingerprint"></i> Blind Trust
-            </button>
-            <button id="viewport-btn-grid" class="layout-btn" title="Switch to Viewport Mode">
-                <i class="fas fa-desktop"></i> Annotate
-            </button>
-            <button id="annotation-style-settings-btn" class="layout-btn" title="Annotation Style Settings">
-                <i class="fas fa-sliders-h"></i> Settings
-            </button>
         </div>
+
+        <div class="pills-right-controls">
+            <!-- Filter dropdown -->
+            <div class="dropdown image-list-dropdown">
+                <button id="filter-btn" class="layout-btn" title="Filter Images">
+                    <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                </button>
+                <div class="dropdown-content filter-dropdown-content">
+                    <div class="dropdown-section-title">Status</div>
+                    <a href="#" data-filter="all">All Images</a>
+                    <a href="#" data-filter="annotated">Annotated</a>
+                    <a href="#" data-filter="preannotated">Pre-Annotated</a>
+                    <a href="#" data-filter="unannotated">Not Annotated</a>
+
+                    <div class="dropdown-section-title">Count Presets</div>
+                    <a href="#" data-filter="anno-0">No Annotations (0)</a>
+                    <a href="#" data-filter="anno-1-5">1 – 5 Annotations</a>
+                    <a href="#" data-filter="anno-gt5">&gt; 5 Annotations</a>
+                    <a href="#" data-filter="class-1">Single Class (1)</a>
+                    <a href="#" data-filter="class-multi">Multi-Class (2+)</a>
+
+                    <div class="dropdown-section-title">Custom Range</div>
+                    <div class="filter-range-block">
+                        <div class="filter-range-row">
+                            <span class="range-label">Annotations:</span>
+                            <input type="number" class="filter-range-anno-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
+                            <span class="range-dash">–</span>
+                            <input type="number" class="filter-range-anno-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
+                        </div>
+                        <div class="filter-range-row">
+                            <span class="range-label">Classes:</span>
+                            <input type="number" class="filter-range-class-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
+                            <span class="range-dash">–</span>
+                            <input type="number" class="filter-range-class-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
+                        </div>
+                        <div class="filter-range-actions">
+                            <button type="button" class="filter-range-apply-btn">Apply</button>
+                            <button type="button" class="filter-range-reset-btn">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sort dropdown -->
+            <div class="dropdown image-list-dropdown">
+                <button id="sort-btn" class="layout-btn" title="Sort Images">
+                    <i class="fa-solid fa-arrow-down-short-wide"></i> <span>Sort</span>
+                </button>
+                <div class="dropdown-content">
+                    <div class="dropdown-section-title">Name &amp; Date</div>
+                    <a href="#" data-sort="name-asc">Name (1-9, A-Z)</a>
+                    <a href="#" data-sort="name-desc">Name (Z-A, 9-1)</a>
+                    <a href="#" data-sort="date-asc">Date (Oldest First)</a>
+                    <a href="#" data-sort="date-desc">Date (Newest First)</a>
+                    <div class="dropdown-section-title">Status</div>
+                    <a href="#" data-sort="status-asc">Status (Annotated First)</a>
+                    <a href="#" data-sort="status-desc">Status (Unannotated First)</a>
+                    <a href="#" data-sort="status-pre">Status (Pre-Annotated First)</a>
+                    <div class="dropdown-section-title">Annotations &amp; Classes</div>
+                    <a href="#" data-sort="anno-desc">Annotations (Most First)</a>
+                    <a href="#" data-sort="anno-asc">Annotations (Least First)</a>
+                    <a href="#" data-sort="class-desc">Classes (Most First)</a>
+                    <a href="#" data-sort="class-asc">Classes (Least First)</a>
+                </div>
+            </div>
+
+            <div class="image-search-box">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="image-name-search" placeholder="Search images..." class="image-search-input">
+            </div>
+
+            <div class="view-toggle-group">
+                <button type="button" id="grid-toggle-btn" class="view-toggle-btn active" title="Grid View" data-view="grid">
+                    <i class="fa-solid fa-grip"></i>
+                </button>
+                <button type="button" id="list-toggle-btn" class="view-toggle-btn" title="List View" data-view="list">
+                    <i class="fa-solid fa-list-ul"></i>
+                </button>
+            </div>
+
+            <!-- Hidden anchors for JS event triggers -->
+            <div style="display:none;">
+                <button id="ai-preannotator-btn"></button>
+                <button id="ai-blind-trust"></button>
+                <button id="annotation-style-settings-btn"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid View -->
+    <div id="grid-view" class="view-container grid-view">
         <div class="grid-content">
             <p class="image-list-empty" role="status" hidden>No images match this filter.</p>
             <div id="grid-thumbnails" class="grid-thumbnails">
@@ -727,7 +2427,10 @@
                         data-image-id="{{ image.id }}" 
                         data-date="{{ image.date }}"
                         data-annotated="{{ 'true' if image.annotated else 'false' }}" 
-                        data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
+                        data-preannotated="{{ 'true' if image.preannotated else 'false' }}"
+                        data-classes="{{ image.classes|join(' ') if image.classes else '' }}"
+                        data-annotation-count="{{ image.annotation_count }}"
+                        data-class-count="{{ image.class_count }}">
                         <div class="card-checkbox">
                             <input type="checkbox" class="image-checkbox" data-path="{{ image.url }}">
                         </div>
@@ -736,6 +2439,7 @@
                             {% if image.annotated %}
                                 <span class="annotated-check"><i class="fas fa-check"></i></span>
                             {% endif %}
+                            <span class="thumbnail-count-badge grid-card-badge" title="{{ image.annotation_count }} annotations"{% if image.annotation_count == 0 %} style="display:none;"{% endif %}>{{ image.annotation_count }}</span>
                         </div>
                         <div class="card-info">
                             <span class="image-id">{{ image.id }}</span>
@@ -774,6 +2478,9 @@
                         data-date="{{ image.date }}"
                         data-annotated="{{ 'true' if image.annotated else 'false' }}" 
                         data-preannotated="{{ 'true' if image.preannotated else 'false' }}" 
+                        data-classes="{{ image.classes|join(' ') if image.classes else '' }}"
+                        data-annotation-count="{{ image.annotation_count }}"
+                        data-class-count="{{ image.class_count }}"
                         data-annotator="{% if image_annotators.get(image.url) %}{{ image_annotators[image.url] }}{% else %}null{% endif %}">
                         <td>
                             <input type="checkbox" class="image-checkbox" data-path="{{ image.url }}">
@@ -808,38 +2515,507 @@
             </tbody>
         </table>
     </div>
+    </div> <!-- Close #tab-content-images -->
+
+    <!-- Classes Tab Content -->
+    <div id="tab-content-classes" class="project-tab-panel">
+        <div class="classes-panel-card">
+            <h3 class="panel-header-title"><i class="fa-solid fa-tags"></i> Project Classes</h3>
+            <p style="color: var(--text-light); margin-bottom: 16px; font-size: 0.9rem;">
+                Classes defined for <strong>{{ project_name }}</strong> ({{ setup_type }}):
+            </p>
+            <div class="classes-grid-list">
+                {% for cls in classes %}
+                <div class="class-item-chip">
+                    <span class="pill-dot dot-annotated"></span>
+                    <span>{{ cls }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="pvh-action-btn primary" id="tab-open-add-classes">
+                    <i class="fa-solid fa-plus"></i> Add New Classes
+                </button>
+                <button type="button" class="layout-btn" id="tab-open-style-settings">
+                    <i class="fa-solid fa-palette"></i> Style Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Tab Content -->
+    <div id="tab-content-charts" class="project-tab-panel">
+        <div class="charts-panel-card">
+            <h3 class="panel-header-title"><i class="fa-solid fa-chart-pie"></i> Dataset Analytics</h3>
+            <p style="color: var(--text-light); font-size: 0.9rem;">
+                Visual distribution of annotations and labeling coverage for <strong>{{ project_name }}</strong>.
+            </p>
+            <div class="charts-grid-row">
+                <div class="chart-box-container">
+                    <div id="tab-chart-pie" style="width: 100%; height: 350px;"></div>
+                </div>
+                <div class="chart-box-container">
+                    <div id="tab-chart-bar" style="width: 100%; height: 350px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Models Tab Content -->
+    <div id="tab-content-models" class="project-tab-panel">
+        <div class="models-panel-card">
+            <h3 class="panel-header-title"><i class="fa-solid fa-robot"></i> AI Pre-annotation & Models</h3>
+            <p style="color: var(--text-light); margin-bottom: 20px; font-size: 0.9rem;">
+                Run zero-shot grounding or custom Ultralytics YOLO models to automate labeling on this dataset.
+            </p>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                <button type="button" class="pvh-action-btn primary" id="tab-trigger-preannotator">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Configure AI Pre-annotator</span>
+                </button>
+                <button type="button" class="layout-btn ai-blind-trust" id="tab-trigger-blind-trust">
+                    <i class="fa-solid fa-fingerprint"></i>
+                    <span>Run Blind Trust</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Tab Content (Inline Full Panel) -->
+    <div id="tab-content-export" class="project-tab-panel">
+        <div class="models-panel-card" style="max-width: 960px;">
+            <h3 class="panel-header-title"><i class="fa-solid fa-file-export"></i> Export Annotations & Dataset</h3>
+            <p style="color: var(--text-light); margin-bottom: 12px; font-size: 0.84rem;">
+                Select format, configure dataset splits and download your trained dataset in Ultralytics YOLO or standard formats.
+            </p>
+
+            <div class="export-tabs">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button type="button" class="tab-link active" data-tab="format-tab">Format Selection</button>
+                    <button type="button" class="tab-link" data-tab="split-tab">Split & Save Configuration</button>
+                </div>
+              
+                <!-- Format Selection Tab -->
+                <div id="format-tab" class="tab-content active">
+                    <div class="format-options">
+                        {% if setup_type in ("Bounding Box", "Segmentation") %}
+                        <div class="format-card" data-format="COCO">
+                            <div class="format-card-check"><i class="fa-solid fa-check"></i></div>
+                            <div class="format-logo-box">
+                                <img src="/static/img/coco_logo.png" alt="COCO Format">
+                            </div>
+                            <div class="format-card-content">
+                                <div class="format-header-row">
+                                    <h3 class="format-card-title">COCO</h3>
+                                    <span class="format-tag-badge tag-json">JSON</span>
+                                </div>
+                                <p class="format-card-desc">Standard JSON format with image annotations, ideal for object detection and instance segmentation.</p>
+                            </div>
+                        </div>
+                        <div class="format-card" data-format="PASCAL_VOC">
+                            <div class="format-card-check"><i class="fa-solid fa-check"></i></div>
+                            <div class="format-logo-box">
+                                <img src="/static/img/pascal_voc_logo.png" alt="Pascal VOC Format">
+                            </div>
+                            <div class="format-card-content">
+                                <div class="format-header-row">
+                                    <h3 class="format-card-title">Pascal VOC</h3>
+                                    <span class="format-tag-badge tag-xml">XML</span>
+                                </div>
+                                <p class="format-card-desc">Individual XML annotation files per image, widely compatible with classic vision pipelines.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if setup_type == "Segmentation" %}
+                        <div class="format-card" data-format="MASK">
+                            <div class="format-card-check"><i class="fa-solid fa-check"></i></div>
+                            <div class="format-logo-box">
+                                <img src="/static/img/mask_logo.gif" alt="Mask Format">
+                            </div>
+                            <div class="format-card-content">
+                                <div class="format-header-row">
+                                    <h3 class="format-card-title">MASK PNG</h3>
+                                    <span class="format-tag-badge tag-mask">PNG</span>
+                                </div>
+                                <p class="format-card-desc">Pixel-level PNG segmentation masks paired with images, for semantic segmentation models.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if setup_type != 'Classification' %}
+                        <div class="format-card" data-format="YOLO">
+                            <span class="format-badge-recommended"><i class="fa-solid fa-star"></i> Recommended</span>
+                            <div class="format-card-check"><i class="fa-solid fa-check"></i></div>
+                            <div class="format-logo-box">
+                                <img src="/static/img/yolo_logo.png" alt="YOLO Format">
+                            </div>
+                            <div class="format-card-content">
+                                <div class="format-header-row">
+                                    <h3 class="format-card-title">YOLO</h3>
+                                    <span class="format-tag-badge tag-yolo">YAML / TXT</span>
+                                </div>
+                                <p class="format-card-desc">YAML configuration and normalized bounding boxes in TXT files, optimized for Ultralytics YOLO models.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="format-card" data-format="CSV">
+                            <div class="format-card-check"><i class="fa-solid fa-check"></i></div>
+                            <div class="format-logo-box">
+                                <img src="/static/img/csv_logo.png" alt="CSV Format">
+                            </div>
+                            <div class="format-card-content">
+                                <div class="format-header-row">
+                                    <h3 class="format-card-title">CSV</h3>
+                                    <span class="format-tag-badge tag-csv">Tabular</span>
+                                </div>
+                                <p class="format-card-desc">Tabular dataset file with coordinate columns and image paths, great for custom analysis and spreadsheets.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 20px;">
+                        <div id="export-warning" style="display: none;"></div>
+                        <div style="margin-left: auto;">
+                            <button type="button" class="next-btn" id="next-export-button" disabled>Next: Configure Splits <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+              
+                <!-- Split Configuration Tab -->
+                <div id="split-tab" class="tab-content">
+                    <div class="split-options">
+                        <!-- Top Header: Toggle Switch on left, Quick Presets on right -->
+                        <div class="split-header-row">
+                            <div class="split-toggle">
+                                <label class="switch">
+                                    <input type="checkbox" id="enable-splitting" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="split-toggle-label">Enable Dataset Splitting</span>
+                            </div>
+                            <div class="split-presets-group" id="split-presets-group">
+                                <span class="presets-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Presets:</span>
+                                <div class="presets-pills">
+                                    <button type="button" class="preset-chip preset-btn active" data-preset="70,15,15">
+                                        <span class="pill-dot dot-preset-1"></span>
+                                        <span>70 / 15 / 15</span>
+                                    </button>
+                                    <button type="button" class="preset-chip preset-btn" data-preset="80,10,10">
+                                        <span class="pill-dot dot-preset-2"></span>
+                                        <span>80 / 10 / 10</span>
+                                    </button>
+                                    <button type="button" class="preset-chip preset-btn" data-preset="70,20,10">
+                                        <span class="pill-dot dot-preset-3"></span>
+                                        <span>70 / 20 / 10</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Interactive Segmented Distribution Bar -->
+                        <div class="split-distribution-wrapper" id="split-distribution-wrapper">
+                            <div class="split-dist-bar" id="split-distribution-bar">
+                                <div id="dist-segment-train" class="dist-segment segment-train" style="width: 70%;">
+                                    <span class="segment-title">Train</span>
+                                    <span class="segment-val" id="dist-val-train">70%</span>
+                                </div>
+                                <div id="dist-segment-val" class="dist-segment segment-val" style="width: 15%;">
+                                    <span class="segment-title">Val</span>
+                                    <span class="segment-val" id="dist-val-val">15%</span>
+                                </div>
+                                <div id="dist-segment-test" class="dist-segment segment-test" style="width: 15%;">
+                                    <span class="segment-title">Test</span>
+                                    <span class="segment-val" id="dist-val-test">15%</span>
+                                </div>
+                            </div>
+                        </div>
+                      
+                        <!-- Split Ratio Sliders with Integrated Selection Checkboxes -->
+                        <div class="split-ratios">
+                            <div class="ratio-control" data-split="train">
+                                <div class="ratio-label-group">
+                                    <input type="checkbox" id="train-split" name="split" value="train" checked style="display: none;">
+                                    <div class="ratio-label-inner static-split">
+                                        <span class="split-pill-dot dot-train"></span>
+                                        <label for="train-ratio">Train:</label>
+                                    </div>
+                                </div>
+                                <div class="ratio-slider-wrap">
+                                    <input type="range" id="train-ratio" min="0" max="100" value="70" step="5" class="custom-range range-train">
+                                </div>
+                                <div class="ratio-input-wrap">
+                                    <input type="number" id="train-ratio-value" min="0" max="100" value="70">
+                                    <span class="ratio-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="ratio-control" data-split="val">
+                                <div class="ratio-label-group">
+                                    <label class="ratio-checkbox-label" for="val-split">
+                                        <input type="checkbox" id="val-split" name="split" value="val" checked>
+                                        <span class="split-pill-dot dot-val"></span>
+                                        <span>Validation:</span>
+                                    </label>
+                                </div>
+                                <div class="ratio-slider-wrap">
+                                    <input type="range" id="val-ratio" min="0" max="100" value="15" step="5" class="custom-range range-val">
+                                </div>
+                                <div class="ratio-input-wrap">
+                                    <input type="number" id="val-ratio-value" min="0" max="100" value="15">
+                                    <span class="ratio-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="ratio-control" data-split="test">
+                                <div class="ratio-label-group">
+                                    <label class="ratio-checkbox-label" for="test-split">
+                                        <input type="checkbox" id="test-split" name="split" value="test" checked>
+                                        <span class="split-pill-dot dot-test"></span>
+                                        <span>Test:</span>
+                                    </label>
+                                </div>
+                                <div class="ratio-slider-wrap">
+                                    <input type="range" id="test-ratio" min="0" max="100" value="15" step="5" class="custom-range range-test">
+                                </div>
+                                <div class="ratio-input-wrap">
+                                    <input type="number" id="test-ratio-value" min="0" max="100" value="15">
+                                    <span class="ratio-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+                      
+                        <!-- Total Status Badge & Error Message -->
+                        <div class="ratio-summary">
+                            <div class="ratio-status-badge valid" id="ratio-status-badge">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span>Total:</span>
+                                <strong id="ratio-total-value">100</strong>%
+                                <span class="badge-status-text">(Valid)</span>
+                            </div>
+                            <div class="ratio-error" id="ratio-error" style="display: none;">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span>Ratios must sum to exactly 100%</span>
+                            </div>
+                        </div>
+
+                        <!-- Save Options: 2 Selectable Cards -->
+                        <div class="save-options">
+                            <h3 class="save-options-title"><i class="fa-solid fa-floppy-disk"></i> Save Options</h3>
+                            <div class="save-cards-grid">
+                                <label class="save-option-card selected" id="save-card-download" for="export-download">
+                                    <input type="radio" id="export-download" name="export_option" value="download" checked>
+                                    <div class="save-card-icon icon-download"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+                                    <div class="save-card-body">
+                                        <span class="save-card-title">Download ZIP Archive</span>
+                                        <span class="save-card-desc">Download dataset directly in your browser</span>
+                                    </div>
+                                    <div class="save-card-radio-indicator"><i class="fa-solid fa-check"></i></div>
+                                </label>
+                                <label class="save-option-card" id="save-card-path" for="export-path">
+                                    <input type="radio" id="export-path" name="export_option" value="path">
+                                    <div class="save-card-icon icon-path"><i class="fa-solid fa-server"></i></div>
+                                    <div class="save-card-body">
+                                        <span class="save-card-title">Save to Server Folder</span>
+                                        <span class="save-card-desc">Direct output onto local disk or cloud filesystem</span>
+                                    </div>
+                                    <div class="save-card-radio-indicator"><i class="fa-solid fa-check"></i></div>
+                                </label>
+                            </div>
+
+                            <div id="export-path-container" style="display: none; margin-top: 10px;">
+                                <label for="export-path-input" style="display: block; margin-bottom: 4px; font-size: 0.8rem; font-weight: 500;">Destination Directory Path:</label>
+                                <input type="text" id="export-path-input" class="modal-text-input" style="height: 32px; font-size: 0.82rem;" placeholder="e.g. /workspace/datasets/diodes_export or D:\datasets\export">
+                                <small style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted);"><i class="fa-solid fa-circle-info"></i> If folder does not exist, it will be automatically created.</small>
+                            </div>
+                        </div>
+                    </div>
+                  
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+                        <button type="button" class="back-btn" id="back-export-button"><i class="fa-solid fa-arrow-left"></i> Back to Formats</button>
+                        <button type="button" class="pvh-action-btn primary" id="confirm-export" disabled>
+                            <i class="fa-solid fa-download"></i> Start Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tab Content (Inline Full Panel) -->
+    <div id="tab-content-settings" class="project-tab-panel">
+        <div class="models-panel-card" style="max-width: 960px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                    <h3 class="panel-header-title"><i class="fa-solid fa-sliders"></i> Annotation & Project Settings</h3>
+                    <p style="color: var(--text-light); font-size: 0.9rem; margin-top: 4px;">
+                        Customize visual rendering, hotkeys, auto-saving rules, and workflow automation for this project.
+                    </p>
+                </div>
+                <div class="annotation-style-actions" style="margin: 0;">
+                    <button id="annotation-style-save-btn" type="button" class="pvh-action-btn primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save Settings</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="style-tab-header">
+                <button type="button" class="style-tab-btn active" data-style-tab="visual"><i class="fa-solid fa-palette"></i> Visual</button>
+                <button type="button" class="style-tab-btn" data-style-tab="workflow"><i class="fa-solid fa-bolt"></i> General / Workflow</button>
+                <button type="button" class="style-tab-btn" data-style-tab="json"><i class="fa-solid fa-code"></i> JSON</button>
+            </div>
+            <div id="annotation-style-error" class="style-config-error" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;"></div>
+            
+            <div class="style-tab-panel active" data-style-panel="visual">
+                <div class="style-defaults-grid">
+                    <label>Render Mode
+                        <select id="style-default-render-mode">
+                            <option value="outline">Outline only</option>
+                            <option value="fill">Fill only</option>
+                            <option value="outline_fill">Outline + fill</option>
+                        </select>
+                    </label>
+                    <label>Stroke Width
+                        <input id="style-default-stroke-width" type="number" min="1" max="24" step="1">
+                    </label>
+                    <label>Fill Opacity
+                        <input id="style-default-fill-opacity" type="number" min="0" max="1" step="0.01">
+                    </label>
+                    <label>Selected Stroke Width
+                        <input id="style-selected-stroke-width" type="number" min="1" max="24" step="1">
+                    </label>
+                    <label>Selected Color
+                        <span class="style-color-field style-color-field-stroke">
+                            <span class="style-color-preview" aria-hidden="true"></span>
+                            <input id="style-selected-stroke-color" type="color">
+                        </span>
+                    </label>
+                    <label>Preannotation Fill Opacity
+                        <input id="style-preannotation-fill-opacity" type="number" min="0" max="1" step="0.01">
+                    </label>
+                </div>
+                <div class="style-classes-section">
+                    <div class="style-classes-header">
+                        <h4 style="font-size: 1rem; color: var(--text-color);">Per-Class Overrides</h4>
+                        <button id="annotation-style-reset-btn" type="button" class="layout-btn"><i class="fa-solid fa-rotate-left"></i> Reset Defaults</button>
+                    </div>
+                    <div class="style-class-table-wrapper" style="margin-top: 10px;">
+                        <table class="style-class-table">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Stroke</th>
+                                    <th>Fill</th>
+                                    <th>Width</th>
+                                    <th>Opacity</th>
+                                    <th>Mode</th>
+                                    <th>Preview</th>
+                                </tr>
+                            </thead>
+                            <tbody id="annotation-style-class-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="style-tab-panel" data-style-panel="workflow">
+                <div class="workflow-settings-box">
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-fit-to-labels">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Fit to labels</span>
+                        </label>
+                        <p class="workflow-setting-desc">Automatically zoom to all visible annotations and AI predictions when opening an image. Respects hidden classes and the confidence threshold. Images without visible labels are shown in full. Manual zoom remains available.</p>
+                    </div>
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-advance-after-save">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Go to next image after Approve / Save</span>
+                        </label>
+                        <p class="workflow-setting-desc">Press S or Enter, or click Approve / Save, to save and move to the next image in the current sort and filter order. Only advances after a successful save. Auto-save on image switch does not trigger another advance.</p>
+                    </div>
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-autosave-switch">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Auto-save annotations on image switch</span>
+                        </label>
+                        <p class="workflow-setting-desc">
+                            Automatically saves any modified annotations when switching between images (via keyboard navigation or thumbnail clicks). If an image has AI pre-annotations but was not edited, it remains untouched without accidental approval.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="style-tab-panel" data-style-panel="json">
+                <textarea id="annotation-style-json-editor" spellcheck="false"></textarea>
+            </div>
+        </div>
+    </div>
+
     <!-- Annotation View -->
     <div id="annotation-view" class="view-container annotation-container hide">
         <div class="images-list">
             <div class="images-header">
                 <div class="dropdown image-list-dropdown">
-                    <button id="filter-btn-annotation" class="layout-btn" title="Filter: All Images">
-                        <i class="fas fa-filter" aria-hidden="true"></i> <span class="image-list-control-label">All Images</span>
+                    <button id="filter-btn-annotation" class="layout-btn" title="Filter images">
+                        <i class="fas fa-filter" aria-hidden="true"></i>
                     </button>
-                    <div class="dropdown-content">
+                    <div class="dropdown-content filter-dropdown-content">
+                        <div class="dropdown-section-title">Status</div>
                         <a href="#" data-filter="all">All Images</a>
                         <a href="#" data-filter="annotated">Annotated</a>
                         <a href="#" data-filter="preannotated">Pre-Annotated</a>
                         <a href="#" data-filter="unannotated">Not Annotated</a>
+
+                        <div class="dropdown-section-title">Count Presets</div>
+                        <a href="#" data-filter="anno-0">No Annotations (0)</a>
+                        <a href="#" data-filter="anno-1-5">1 – 5 Annotations</a>
+                        <a href="#" data-filter="anno-gt5">&gt; 5 Annotations</a>
+                        <a href="#" data-filter="class-1">Single Class (1)</a>
+                        <a href="#" data-filter="class-multi">Multi-Class (2+)</a>
+
+                        <div class="dropdown-section-title">Custom Range</div>
+                        <div class="filter-range-block">
+                            <div class="filter-range-row">
+                                <span class="range-label">Annotations:</span>
+                                <input type="number" class="filter-range-anno-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
+                                <span class="range-dash">–</span>
+                                <input type="number" class="filter-range-anno-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
+                            </div>
+                            <div class="filter-range-row">
+                                <span class="range-label">Classes:</span>
+                                <input type="number" class="filter-range-class-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
+                                <span class="range-dash">–</span>
+                                <input type="number" class="filter-range-class-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
+                            </div>
+                            <div class="filter-range-actions">
+                                <button type="button" class="filter-range-apply-btn">Apply</button>
+                                <button type="button" class="filter-range-reset-btn">Reset</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="dropdown image-list-dropdown">
-                    <button id="sort-btn-annotation" class="layout-btn" title="Rearrange List">
-                        <i class="fas fa-sort"></i> Sort
+                    <button id="sort-btn-annotation" class="layout-btn" title="Sort images">
+                        <i class="fas fa-arrow-down-short-wide" aria-hidden="true"></i>
                     </button>
                     <div class="dropdown-content">
+                        <div class="dropdown-section-title">Name &amp; Date</div>
                         <a href="#" data-sort="name-asc">Name (1-9, A-Z)</a>
                         <a href="#" data-sort="name-desc">Name (Z-A, 9-1)</a>
                         <a href="#" data-sort="date-asc">Date (Oldest First)</a>
                         <a href="#" data-sort="date-desc">Date (Newest First)</a>
+                        <div class="dropdown-section-title">Status</div>
                         <a href="#" data-sort="status-asc">Status (Annotated First)</a>
                         <a href="#" data-sort="status-desc">Status (Unannotated First)</a>
                         <a href="#" data-sort="status-pre">Status (Pre-Annotated First)</a>
+                        <div class="dropdown-section-title">Annotations &amp; Classes</div>
+                        <a href="#" data-sort="anno-desc">Annotations (Most First)</a>
+                        <a href="#" data-sort="anno-asc">Annotations (Least First)</a>
+                        <a href="#" data-sort="class-desc">Classes (Most First)</a>
+                        <a href="#" data-sort="class-asc">Classes (Least First)</a>
                     </div>
                 </div>
-                <button id="viewport-btn-annotation" class="layout-btn" title="Switch to Grid View">
-                    <i class="fas fa-th-large"></i> Grid View
-                </button>
             </div>
             <p class="image-list-empty" role="status" hidden>No images match this filter.</p>
             <div class="thumbnails">
@@ -852,10 +3028,15 @@
                                 data-image-id="{{ image.id }}" 
                                 data-date="{{ image.date }}"
                                 data-annotated="{{ 'true' if image.annotated else 'false' }}" 
-                                data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
-                                <td class="thumbnail-id">{{ image.id }}</td>
+                                data-preannotated="{{ 'true' if image.preannotated else 'false' }}"
+                                data-classes="{{ image.classes|join(' ') if image.classes else '' }}"
+                                data-annotation-count="{{ image.annotation_count }}"
+                                data-class-count="{{ image.class_count }}">
+                                <td class="thumbnail-id">#{{ image.id }}</td>
                                 <td class="thumbnail-image">
                                     <img data-src="{{ image.url }}" alt="Thumbnail" class="lazy-load">
+                                    <span class="thumbnail-status-dot status-{{ 'annotated' if image.annotated else ('preannotated' if image.preannotated else 'unannotated') }}"></span>
+                                    <span class="thumbnail-count-badge" title="{{ image.annotation_count }} annotations"{% if image.annotation_count == 0 %} style="display:none;"{% endif %}>{{ image.annotation_count }}</span>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -865,63 +3046,118 @@
         </div>
         <div class="labeling-area">
             <p id="image-filter-notice" role="status" hidden>Current image is outside the filter. Use Prev/Next to open a matching image.</p>
+            
+            <!-- Top Studio Toolbar (Option A Rebalanced) -->
+            <div class="top-annotation-toolbar">
+                <!-- Left: Gallery Return Button -->
+                <div class="toolbar-group toolbar-left">
+                    <button id="viewport-btn-annotation" class="gallery-return-btn" title="Back to Gallery View">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Gallery</span>
+                    </button>
+                </div>
+
+                <!-- Center: Primary Drawing, Edit & View Tools -->
+                <div class="toolbar-group toolbar-center">
+                    {% if setup_type != 'Classification' %}
+                    <!-- Drawing Modes -->
+                    <div class="toolbar-subgroup">
+                        <button class="control-btn" id="rect-mode" title="Bounding Box (R)"><i class="fa-solid fa-vector-square"></i> <span>Box</span></button>
+                        <button class="control-btn" id="polygon-mode" title="Polygon (P)"><i class="fa-solid fa-draw-polygon"></i> <span>Polygon</span></button>
+                        <button class="control-btn" id="magic-mode" title="One-Click Annotation (M)"><i class="fa-solid fa-wand-magic-sparkles"></i> <span>Magic</span></button>
+                        <button class="control-btn icon-only" id="select-mode" title="Select / Move Labels (V)" aria-label="Select Labels"><i class="fa-solid fa-arrow-pointer"></i></button>
+                        <button class="control-btn icon-only" id="pan-mode" title="Pan Image (H or Space)" aria-label="Pan Image" aria-pressed="false"><i class="fa-solid fa-hand"></i></button>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- History / Edit Actions -->
+                    <div class="toolbar-subgroup">
+                        <button class="control-btn icon-only" id="undo-btn" title="Undo Last Action (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button class="control-btn icon-only" id="duplicate-btn" title="Duplicate Selected Annotation (Ctrl+D)"><i class="fa-solid fa-copy"></i></button>
+                        <button class="control-btn icon-only" id="clear-annotations-btn" title="Clear All Annotations" aria-label="Clear All Annotations"><i class="fa-solid fa-trash-can"></i></button>
+                        <button class="control-btn icon-only danger-hover" id="delete-btn" title="Delete Selected Annotation (Del)"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- View / Zoom Controls -->
+                    <div class="toolbar-subgroup">
+                        <button class="control-btn icon-only" id="zoom-out-btn" title="Zoom Out (-)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <button class="control-btn" id="reset-view" title="Reset View (0)"><i class="fa-solid fa-expand"></i> <span>100%</span></button>
+                        <button class="control-btn icon-only" id="zoom-in-btn" title="Zoom In (+)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    </div>
+                    {% else %}
+                    <!-- Classification View Controls -->
+                    <div class="toolbar-subgroup">
+                        <button class="control-btn icon-only" id="zoom-out-btn" title="Zoom Out (-)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <button class="control-btn" id="reset-view" title="Reset View"><i class="fa-solid fa-expand"></i> <span>Reset</span></button>
+                        <button class="control-btn icon-only" id="zoom-in-btn" title="Zoom In (+)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Right Side: AI Controls, Shortcuts & Image Navigation -->
+                <div class="toolbar-group toolbar-right">
+                    {% if setup_type != 'Classification' %}
+                    <div class="toolbar-subgroup">
+                        <button class="control-btn" id="hide-prediction-btn" title="Toggle AI Predictions"><i class="fa-solid fa-eye"></i> <span>AI</span></button>
+                        <div class="confidence-pill" title="Confidence threshold">
+                            <span class="conf-title">Conf:</span>
+                            <input type="range" id="confidence-slider" min="0" max="1" step="0.01" value="0.4">
+                            <b id="confidence-value">0.40</b>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+                    {% endif %}
+
+                    <button type="button" class="shortcuts-toggle shortcuts-chip" title="Keyboard shortcuts" aria-expanded="false" aria-controls="annotation-shortcuts">
+                        <i class="fas fa-keyboard"></i> <span>Shortcuts</span>
+                    </button>
+
+                    <div class="toolbar-divider"></div>
+
+                    <div class="toolbar-subgroup nav-jump-subgroup">
+                        <button class="control-btn icon-only" id="prev-image-btn" title="Previous Image (A)"><i class="fa-solid fa-chevron-left"></i></button>
+                        <div class="image-nav-jump" title="Jump to image number (Enter to go)">
+                            <input type="number" id="image-jump-input" min="1" max="{{ images|length }}" value="1" placeholder="1" autocomplete="off" aria-label="Current image number">
+                            <span class="jump-separator">/</span>
+                            <span class="jump-total" id="image-jump-total">{{ images|length }}</span>
+                        </div>
+                        <button class="control-btn icon-only" id="next-image-btn" title="Next Image (D)"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Workspace: Clean 100% Canvas Area -->
             <div class="image-workspace">
                 <div class="image-container">
-                    <div class="image-info">
+                    <!-- Subtle floating metadata chip -->
+                    <div class="image-info canvas-floating-meta">
                         <span class="image-info-text"></span>
-                        <span id="annotation-summary" class="annotation-summary">AI: no preannotations</span>
                     </div>
                     <canvas id="labeling-canvas"></canvas>
-                    <div class="shortcuts-sidebar">
-                        <button class="shortcuts-toggle" title="Toggle Shortcuts">
-                            <i class="fas fa-keyboard"></i> Shortcuts
-                        </button>
+                    <div class="shortcuts-sidebar collapsed" id="annotation-shortcuts">
+                        <div class="shortcuts-popover-header">
+                            <span><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</span>
+                            <button type="button" class="shortcuts-close-btn" title="Close (Esc)">×</button>
+                        </div>
                         <div class="shortcuts-content">
-                            <div class="shortcuts-legend"></div>
                             <div class="shortcuts-list"></div>
                         </div>
                     </div>
-                    <div class="canvas-controls">
-                        {% if setup_type != 'Classification' %}
-                        <button class="control-btn" id="rect-mode" title="Draw Rectangle"><img src="/static/img/logos/rect-mode.svg" alt="Draw Rectangle"></button>
-                        <button class="control-btn" id="polygon-mode" title="Draw Polygon"><img src="/static/img/logos/polygon-mode.svg" alt="Draw Polygon"></button>
-                        <button class="control-btn" id="magic-mode" title="One Click Annotation"><img src="/static/img/logos/magic-mode.svg" alt="One Click Annotation"></button>
-                        <button class="control-btn" id="select-mode" title="Select Labels (V)" aria-label="Select Labels"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M5 3v17l5-5 4 7 3-2-4-7h7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
-                        <button class="control-btn" id="pan-mode" title="Pan Image (toggle; or hold middle mouse button)" aria-label="Pan Image" aria-pressed="false"><img src="/static/img/logos/select-mode.svg" alt=""></button>
-                        <button class="control-btn" id="undo-btn" title="Undo Last Action"><img src="/static/img/logos/undo-btn.svg" alt="Undo Last Action"></button>
-                        <button class="control-btn" id="delete-btn" title="Delete Selected Annotation"><img src="/static/img/logos/delete-btn.svg" alt="Delete Selected Annotation"></button>
-                        <button class="control-btn" id="clear-annotations-btn" title="Clear All Annotations on This Image (Undo available)" aria-label="Clear All Annotations"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M3 4h12M7 2h4M5 4l1 15h8l1-15M8 7v9m4-9v9M17 8h5m-4 0-1 13h4l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-                        <button class="control-btn" id="duplicate-btn" title="Duplicate Selected Annotation"><img src="/static/img/logos/duplicate-btn.svg" alt="Duplicate Selected Annotation"></button>
-                        <button class="control-btn" id="grid-btn" title="Toggle Grid"><img src="/static/img/logos/grid-btn.svg" alt="Toggle Grid"></button>
-                        {% endif %}
-                        <button class="control-btn" id="reset-view" title="Reset View"><img src="/static/img/logos/reset-view.svg" alt="Reset View"></button>
-                        <button class="control-btn" id="zoom-in-btn" title="Zoom In"><img src="/static/img/logos/zoom-in-btn.svg" alt="Zoom In"></button>
-                        <button class="control-btn" id="zoom-out-btn" title="Zoom Out"><img src="/static/img/logos/zoom-out-btn.svg" alt="Zoom Out"></button>
-                        <button class="control-btn" id="save-btn" title="Approve / Save (S or Enter)"><img src="/static/img/logos/save-btn.svg" alt="Save Annotations"></button>
-                        <button class="control-btn" id="prev-image-btn" title="Previous Image"><img src="/static/img/logos/prev-image-btn.svg" alt="Previous Image"></button>
-                        <button class="control-btn" id="next-image-btn" title="Next Image"><img src="/static/img/logos/next-image-btn.svg" alt="Next Image"></button>
-                        <button class="control-btn" id="delete-image-btn" title="Delete Current Image"><img src="/static/img/logos/delete-btn.svg" alt="Delete Image"></button>
-                    </div>
                 </div>
-                {% if setup_type != 'Classification' %}
-                <div class="ai-options">
-                    <button id="hide-prediction-btn">Hide Pred.</button>
-                    <div class="confidence-slider">
-                        <label for="confidence-slider">Conf.: <span id="confidence-value">0.4</span></label>
-                        <input type="range" id="confidence-slider" min="0" max="1" step="0.01" value="0.4" style="-webkit-appearance: slider-vertical; writing-mode: bt-lr; width: 8px; height: 100%;">
-                    </div>
-                </div>
-                {% endif %}
             </div>
+
+            <!-- Bottom Classes & Approval Dock -->
             <div class="control-panel">
-                <div class="class-search">
-                    <input type="text" id="class-search-input" placeholder="Search classes...">
-                </div>
                 <div class="class-selector">
                     <div id="class-tags-container"></div>
                 </div>
-                <button class="unapprove-btn" id="unapprove-btn" type="button" title="Remove approval and keep annotations" disabled>Unapprove</button>
-                <button class="approve-btn" id="approve-btn" title="Approve / Save (S or Enter)">Approve</button>
+                <div class="bottom-actions-group">
+                    <button class="unapprove-btn" id="unapprove-btn" type="button" title="Remove approval and keep annotations" disabled><i class="fa-solid fa-xmark"></i> Unapprove</button>
+                    <button class="approve-btn" id="approve-btn" title="Approve / Save (S or Enter)"><i class="fa-solid fa-check"></i> Approve & Save (S)</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1024,145 +3260,7 @@
             </div>
         </div>
     </div>
-    <div class="modal" id="export-modal">
-        <div class="modal-content export-modal-content">
-            <button class="close-btn export-close-btn">×</button>
-            <div class="export-tabs">
-                <!-- Tab Navigation -->
-                <div class="tab-nav">
-                    <button class="tab-link active" data-tab="format-tab">Format</button>
-                    <button class="tab-link" data-tab="split-tab">Split Configuration</button>
-                </div>
-              
-                <!-- Format Selection Tab -->
-                <div id="format-tab" class="tab-content active">
-                    <h2 class="modal-title">Export Annotations</h2>
-                    <p class="modal-subtitle">Select an export format for your annotated images.</p>
-                    <div class="format-options">
-                        {% if setup_type in ("Bounding Box", "Segmentation") %}
-                        <div class="format-card" data-format="COCO">
-                            <img src="/static/img/coco_logo.png" alt="COCO Format">
-                            <h3>COCO</h3>
-                            <p>JSON file with images, ideal for object detection and segmentation.</p>
-                        </div>
-                        <div class="format-card" data-format="PASCAL_VOC">
-                            <img src="/static/img/pascal_voc_logo.png" alt="Pascal VOC Format">
-                            <h3>Pascal VOC</h3>
-                            <p>XML files with images, widely used for object detection.</p>
-                        </div>
-                        {% endif %}
-                        {% if setup_type == "Segmentation" %}
-                        <div class="format-card" data-format="MASK">
-                            <img src="/static/img/mask_logo.gif" alt="Pascal VOC Format">
-                            <h4>MASK PNG</h4>
-                            <p>PNG mask files with images, for semantic segmentation.</p>
-                        </div>
-                        {% endif %}
-                        {% if setup_type != 'Classification' %}
-                        <div class="format-card" data-format="YOLO">
-                            <img src="/static/img/yolo_logo.png" alt="YOLO Format">
-                            <h3>YOLO</h3>
-                            <p>YAML and TXT files with images, optimized for YOLO models.</p>
-                        </div>
-                        {% endif %}
-                        <div class="format-card" data-format="CSV">
-                            <img src="/static/img/csv_logo.png" alt="CSV Format">
-                            <h3>CSV</h3>
-                            <p>Tabular data with images, great for custom analysis.</p>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="display: flex; align-items: center; justify-content: space-between;">
-                        <div id="export-warning" style="display: none;"></div>
-                        <button class="cancel-btn" id="cancel-export">Cancel</button>
-                        <button class="next-btn" id="next-export-button">Next</button>
-                    </div>
-                </div>
-              
-                <!-- Split Configuration Tab -->
-                <div id="split-tab" class="tab-content">
-                    <h2 class="modal-title">Dataset Split Configuration</h2>
-                    <p class="modal-subtitle">Configure how to split your dataset between train, test, and validation sets.</p>
-                  
-                    <div class="split-options">
-                        <div class="split-toggle">
-                            <label class="switch">
-                                <input type="checkbox" id="enable-splitting" checked>
-                                <span class="slider round"></span>
-                            </label>
-                            <span>Enable Dataset Splitting</span>
-                        </div>
-                      
-                        <div class="split-selection">
-                            <div class="split-choice">
-                                <input type="checkbox" id="train-split" name="split" value="train" checked disabled>
-                                <label for="train-split">Train</label>
-                            </div>
-                            <div class="split-choice">
-                                <input type="checkbox" id="test-split" name="split" value="test">
-                                <label for="test-split">Test</label>
-                            </div>
-                            <div class="split-choice">
-                                <input type="checkbox" id="val-split" name="split" value="val">
-                                <label for="val-split">Validation</label>
-                            </div>
-                        </div>
-                      
-                        <div class="split-ratios">
-                            <div class="ratio-control" data-split="train">
-                                <label for="train-ratio">Train:</label>
-                                <input type="range" id="train-ratio" min="0" max="100" value="70" step="5">
-                                <input type="number" id="train-ratio-value" min="0" max="100" value="70">
-                                <span>%</span>
-                            </div>
-                            <div class="ratio-control" data-split="test" style="display: none;">
-                                <label for="test-ratio">Test:</label>
-                                <input type="range" id="test-ratio" min="0" max="100" value="15" step="5">
-                                <input type="number" id="test-ratio-value" min="0" max="100" value="15">
-                                <span>%</span>
-                            </div>
-                            <div class="ratio-control" data-split="val" style="display: none;">
-                                <label for="val-ratio">Validation:</label>
-                                <input type="range" id="val-ratio" min="0" max="100" value="15" step="5">
-                                <input type="number" id="val-ratio-value" min="0" max="100" value="15">
-                                <span>%</span>
-                            </div>
-                        </div>
-                      
-                        <div class="ratio-summary">
-                            <div class="ratio-total">
-                                <strong>Total:</strong>
-                                <span id="ratio-total-value">100</span>
-                                <span>%</span>
-                            </div>
-                            <div class="ratio-error" id="ratio-error" style="display: none;">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <span>Ratios must sum to 100%</span>
-                            </div>
-                        </div>
-                        <div class="save-options">
-                            <h3>Save Options</h3>
-                            <div class="radio-group">
-                                <input type="radio" id="export-download" name="export_option" value="download" checked>
-                                <label for="export-download">Download ZIP file to browser</label>
-                                <input type="radio" id="export-path" name="export_option" value="path">
-                                <label for="export-path">Save ZIP file to local path (Cloud users)</label>
-                            </div>
-                            <div id="export-path-container" style="display: none;">
-                                <label for="export-path-input">Absolute folder path:</label>
-                                <input type="text" id="export-path-input" placeholder="/absolute/path/to/export/folder">
-                                <small>If folder does not exist, it will be created. Please do not enter root priviliged paths.</small>
-                            </div>
-                        </div>
-                    </div>
-                  
-                    <div class="modal-footer">
-                        <button class="back-btn" id="back-export-button">Back</button>
-                        <button class="export-btn" id="confirm-export" disabled>Export</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
     <div class="modal" id="ai-preannotator-modal">
         <div class="modal-content ai-modal-content">
             <button class="close-btn">×</button>
@@ -1319,6 +3417,23 @@
                 <button type="submit" class="create-btn">Apply</button>
             </form>
         </div>
+    <div class="modal" id="add-classes-modal">
+        <div class="modal-content">
+            <button class="close-btn add-classes-close-btn">&times;</button>
+            <h2 class="modal-title">Add Classes to <span id="add-classes-project-name" class="project-name-highlight">{{ project_name }}</span></h2>
+            <form id="add-classes-form">
+                <div class="form-group">
+                    <label class="add-classes-label">New Class Names (separate with commas, dots, or semicolons)</label>
+                    <input type="text" id="new-class-names" name="class_names" placeholder="e.g., drone, bicycle, helmet">
+                    <div class="class-suggestions">
+                        <input type="text" id="new-class-search" placeholder="Search COCO classes...">
+                        <div id="new-class-tags" class="class-tags"></div>
+                    </div>
+                    <p class="existing-classes" id="existing-classes-list" style="margin-top: 10px; font-style: italic; color: var(--text-light);"></p>
+                </div>
+                <button type="submit" class="create-btn" disabled>Add Classes</button>
+            </form>
+        </div>
     </div>
     <div class="modal" id="blind-trust-modal">
         <div class="modal-content ai-modal-content">
@@ -1334,105 +3449,6 @@
             </form>
         </div>
     </div>
-    <div class="modal" id="annotation-style-modal">
-        <div class="modal-content annotation-style-modal-content">
-            <button id="annotation-style-close-btn" class="close-btn">×</button>
-            <h2>Settings</h2>
-            <div class="style-tab-header">
-                <button class="style-tab-btn active" data-style-tab="visual">Visual</button>
-                <button class="style-tab-btn" data-style-tab="workflow">General / Workflow</button>
-                <button class="style-tab-btn" data-style-tab="json">JSON</button>
-            </div>
-            <div id="annotation-style-error" class="style-config-error" style="display: none;"></div>
-            <div class="style-tab-panel active" data-style-panel="visual">
-                <div class="style-defaults-grid">
-                    <label>Render Mode
-                        <select id="style-default-render-mode">
-                            <option value="outline">Outline only</option>
-                            <option value="fill">Fill only</option>
-                            <option value="outline_fill">Outline + fill</option>
-                        </select>
-                    </label>
-                    <label>Stroke Width
-                        <input id="style-default-stroke-width" type="number" min="1" max="24" step="1">
-                    </label>
-                    <label>Fill Opacity
-                        <input id="style-default-fill-opacity" type="number" min="0" max="1" step="0.01">
-                    </label>
-                    <label>Selected Stroke Width
-                        <input id="style-selected-stroke-width" type="number" min="1" max="24" step="1">
-                    </label>
-                    <label>Selected Color
-                        <span class="style-color-field style-color-field-stroke">
-                            <span class="style-color-preview" aria-hidden="true"></span>
-                            <input id="style-selected-stroke-color" type="color">
-                        </span>
-                    </label>
-                    <label>Preannotation Fill Opacity
-                        <input id="style-preannotation-fill-opacity" type="number" min="0" max="1" step="0.01">
-                    </label>
-                </div>
-                <div class="style-classes-section">
-                    <div class="style-classes-header">
-                        <h3>Per-Class Overrides</h3>
-                        <button id="annotation-style-reset-btn" type="button" class="layout-btn">Reset</button>
-                    </div>
-                    <div class="style-class-table-wrapper">
-                        <table class="style-class-table">
-                            <thead>
-                                <tr>
-                                    <th>Class</th>
-                                    <th>Stroke</th>
-                                    <th>Fill</th>
-                                    <th>Width</th>
-                                    <th>Opacity</th>
-                                    <th>Mode</th>
-                                    <th>Preview</th>
-                                </tr>
-                            </thead>
-                            <tbody id="annotation-style-class-rows"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="style-tab-panel" data-style-panel="workflow">
-                <div class="workflow-settings-box">
-                    <div class="workflow-setting-card">
-                        <label class="workflow-switch-label">
-                            <input type="checkbox" id="setting-fit-to-labels">
-                            <span class="workflow-switch-slider"></span>
-                            <span class="workflow-switch-title">Fit to labels</span>
-                        </label>
-                        <p class="workflow-setting-desc">Automatically zoom to all visible annotations and AI predictions when opening an image. Respects hidden classes and the confidence threshold. Images without visible labels are shown in full. Manual zoom remains available.</p>
-                    </div>
-                    <div class="workflow-setting-card">
-                        <label class="workflow-switch-label">
-                            <input type="checkbox" id="setting-advance-after-save">
-                            <span class="workflow-switch-slider"></span>
-                            <span class="workflow-switch-title">Go to next image after Approve / Save</span>
-                        </label>
-                        <p class="workflow-setting-desc">Press S or Enter, or click Approve / Save, to save and move to the next image in the current sort and filter order. Only advances after a successful save. Auto-save on image switch does not trigger another advance.</p>
-                    </div>
-                    <div class="workflow-setting-card">
-                        <label class="workflow-switch-label">
-                            <input type="checkbox" id="setting-autosave-switch">
-                            <span class="workflow-switch-slider"></span>
-                            <span class="workflow-switch-title">Auto-save annotations on image switch</span>
-                        </label>
-                        <p class="workflow-setting-desc">
-                            Automatically saves any modified annotations when switching between images (via keyboard navigation or thumbnail clicks). If an image has AI pre-annotations but was not edited, it remains untouched without accidental approval.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="style-tab-panel" data-style-panel="json">
-                <textarea id="annotation-style-json-editor" spellcheck="false"></textarea>
-            </div>
-            <div class="annotation-style-actions">
-                <button id="annotation-style-save-btn" type="button" class="create-btn">Save</button>
-            </div>
-        </div>
-    </div>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/setup.css">
@@ -1444,8 +3460,311 @@
             "annotationStyleConfig": {{ annotation_style_config|default(None)|tojson }}
         }
     </script>
+    <script src="/static/js/jslib/plotly-2.35.2.min.js"></script>
+    <script type="module" src="/static/js/main.js?v=20260928-v8"></script>
+
     <script>
-        console.log('app-config content:', document.getElementById('app-config').textContent);
+        (function() {
+            function initProjectTabs() {
+                const tabBtns = document.querySelectorAll('.project-tab-btn');
+                const tabPanels = {
+                    images: document.getElementById('tab-content-images'),
+                    classes: document.getElementById('tab-content-classes'),
+                    charts: document.getElementById('tab-content-charts'),
+                    models: document.getElementById('tab-content-models'),
+                    export: document.getElementById('tab-content-export'),
+                    settings: document.getElementById('tab-content-settings')
+                };
+
+                let chartsLoaded = false;
+                const projectName = '{{ project_name }}';
+
+                function switchProjectTab(target) {
+                    if (!tabPanels[target]) return;
+                    tabBtns.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.tabTarget === target);
+                    });
+
+                    Object.entries(tabPanels).forEach(([key, panel]) => {
+                        if (panel) {
+                            panel.classList.toggle('active', key === target);
+                            panel.style.display = key === target ? (key === 'images' ? 'block' : 'flex') : 'none';
+                        }
+                    });
+
+                    if (target === 'charts') {
+                        if (!chartsLoaded) {
+                            loadProjectCharts();
+                        } else if (window.Plotly) {
+                            setTimeout(() => {
+                                try {
+                                    window.Plotly.Plots.resize('tab-chart-pie');
+                                    window.Plotly.Plots.resize('tab-chart-bar');
+                                } catch (e) {}
+                            }, 50);
+                        }
+                    }
+                }
+
+                tabBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        switchProjectTab(btn.dataset.tabTarget);
+                    });
+                });
+
+                document.addEventListener('project-tab-change', event => {
+                    switchProjectTab(event.detail);
+                });
+
+            // Classes Modal Logic
+            const addClassesModal = document.getElementById('add-classes-modal');
+            const addClassesForm = document.getElementById('add-classes-form');
+            const addClassesSubmitBtn = addClassesForm ? addClassesForm.querySelector('.create-btn') : null;
+            const newClassNamesInput = document.getElementById('new-class-names');
+            const newClassSearchInput = document.getElementById('new-class-search');
+            const newClassTags = document.getElementById('new-class-tags');
+            const existingClassesList = document.getElementById('existing-classes-list');
+            const addClassesCloseBtn = document.querySelector('.add-classes-close-btn');
+
+            const cocoClasses = [
+                'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+                'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
+                'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+                'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+                'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+                'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+                'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair',
+                'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse',
+                'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
+                'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+            ];
+
+            let existingClasses = ({{ classes|tojson }} || []).map(c => c.toLowerCase());
+
+            function renderNewClassTags(filter = '') {
+                if (!newClassTags || !newClassNamesInput) return;
+                newClassTags.innerHTML = '';
+                const currentClasses = newClassNamesInput.value
+                    .split(/[,.;]\s*/)
+                    .map(c => c.trim().toLowerCase())
+                    .filter(c => c);
+                const filteredClasses = cocoClasses.filter(c => 
+                    c.toLowerCase().includes(filter.toLowerCase()) && 
+                    !existingClasses.includes(c.toLowerCase())
+                );
+                filteredClasses.forEach(cls => {
+                    const tag = document.createElement('span');
+                    const isSelected = currentClasses.includes(cls.toLowerCase());
+                    tag.className = `class-tag ${isSelected ? 'selected' : ''}`;
+                    tag.textContent = cls;
+                    tag.addEventListener('click', () => {
+                        let updatedClasses = newClassNamesInput.value
+                            .split(/[,.;]\s*/)
+                            .filter(c => c.trim());
+                        const clsLower = cls.toLowerCase();
+                        const index = updatedClasses.findIndex(c => c.trim().toLowerCase() === clsLower);
+                        if (index !== -1) {
+                            updatedClasses.splice(index, 1);
+                        } else {
+                            updatedClasses.push(cls);
+                        }
+                        newClassNamesInput.value = updatedClasses.join(', ');
+                        if (addClassesSubmitBtn) addClassesSubmitBtn.disabled = !newClassNamesInput.value.trim();
+                        renderNewClassTags(newClassSearchInput ? newClassSearchInput.value : '');
+                    });
+                    newClassTags.appendChild(tag);
+                });
+            }
+
+            function openAddClassesModal() {
+                if (!addClassesModal) return;
+                if (existingClassesList) {
+                    existingClassesList.textContent = existingClasses.length > 0 
+                        ? `Existing classes: ${existingClasses.join(', ')}` 
+                        : 'No existing classes.';
+                }
+                if (newClassNamesInput) newClassNamesInput.value = '';
+                if (newClassSearchInput) newClassSearchInput.value = '';
+                if (addClassesSubmitBtn) addClassesSubmitBtn.disabled = true;
+                renderNewClassTags('');
+                addClassesModal.style.display = 'flex';
+            }
+
+            if (newClassNamesInput) {
+                newClassNamesInput.addEventListener('input', () => {
+                    if (addClassesSubmitBtn) addClassesSubmitBtn.disabled = !newClassNamesInput.value.trim();
+                    renderNewClassTags(newClassSearchInput ? newClassSearchInput.value : '');
+                });
+            }
+
+            if (newClassSearchInput) {
+                newClassSearchInput.addEventListener('input', () => {
+                    renderNewClassTags(newClassSearchInput.value);
+                });
+            }
+
+            if (addClassesCloseBtn && addClassesModal) {
+                addClassesCloseBtn.addEventListener('click', () => {
+                    addClassesModal.style.display = 'none';
+                });
+            }
+
+            if (addClassesModal) {
+                addClassesModal.addEventListener('click', (e) => {
+                    if (e.target === addClassesModal) {
+                        addClassesModal.style.display = 'none';
+                    }
+                });
+            }
+
+            if (addClassesForm) {
+                addClassesForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const rawVal = newClassNamesInput ? newClassNamesInput.value.trim() : '';
+                    if (!rawVal) return;
+                    const classesToAdd = rawVal
+                        .split(/[,.;]\s*/)
+                        .map(c => c.trim())
+                        .filter(c => c && !existingClasses.includes(c.toLowerCase()));
+
+                    if (classesToAdd.length === 0) {
+                        alert('No new classes to add (classes already exist).');
+                        return;
+                    }
+
+                    try {
+                        if (addClassesSubmitBtn) {
+                            addClassesSubmitBtn.disabled = true;
+                            addClassesSubmitBtn.textContent = 'Adding...';
+                        }
+                        const resp = await fetch(`/dashboard/add_classes/${encodeURIComponent(projectName)}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ classes: classesToAdd })
+                        });
+                        const res = await resp.json();
+                        if (res.success) {
+                            addClassesModal.style.display = 'none';
+                            location.reload();
+                        } else {
+                            alert(res.error || 'Failed to add classes');
+                        }
+                    } catch (err) {
+                        console.error('Error adding classes:', err);
+                        alert('Error adding classes: ' + err.message);
+                    } finally {
+                        if (addClassesSubmitBtn) {
+                            addClassesSubmitBtn.disabled = false;
+                            addClassesSubmitBtn.textContent = 'Add Classes';
+                        }
+                    }
+                });
+            }
+
+            // Quick modal shortcuts from tabs
+            const btnAddClasses = document.getElementById('tab-open-add-classes');
+            if (btnAddClasses) {
+                btnAddClasses.addEventListener('click', openAddClassesModal);
+            }
+
+            const btnOpenStyles = document.getElementById('tab-open-style-settings');
+            if (btnOpenStyles) {
+                btnOpenStyles.addEventListener('click', () => {
+                    // Navigate to the Settings tab where style settings are now inline
+                    switchProjectTab('settings');
+                });
+            }
+
+            const btnTriggerSettings = document.getElementById('tab-trigger-annotation-settings');
+            if (btnTriggerSettings) {
+                btnTriggerSettings.addEventListener('click', () => {
+                    // Navigate to the Settings tab where style settings are now inline
+                    switchProjectTab('settings');
+                });
+            }
+
+            const btnPreannotator = document.getElementById('tab-trigger-preannotator');
+            if (btnPreannotator) {
+                btnPreannotator.addEventListener('click', () => {
+                    document.getElementById('ai-preannotator-btn')?.click();
+                });
+            }
+
+            const btnBlindTrust = document.getElementById('tab-trigger-blind-trust');
+            if (btnBlindTrust) {
+                btnBlindTrust.addEventListener('click', () => {
+                    const btBtn = document.getElementById('ai-blind-trust');
+                    if (btBtn) btBtn.click();
+                });
+            }
+
+            // Load and plot charts into Charts tab
+            async function loadProjectCharts() {
+                try {
+                    const resp = await fetch(`/dashboard/get_project_overview/${encodeURIComponent(projectName)}`);
+                    const data = await resp.json();
+                    if (data.error) return;
+
+                    chartsLoaded = true;
+
+                    // 1. Image Status Pie Chart
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    const textColor = isDark ? '#f1f1f5' : '#1a1a24';
+                    const paperBg = 'transparent';
+
+                    const pieData = [{
+                        values: [data.annotated_images, data.non_annotated_images],
+                        labels: ['Annotated', 'Unannotated'],
+                        type: 'pie',
+                        marker: { colors: ['#10b981', '#f59e0b'] },
+                        hole: 0.4
+                    }];
+                    const pieLayout = {
+                        title: { text: 'Annotation Progress', font: { color: textColor, size: 14 } },
+                        paper_bgcolor: paperBg,
+                        plot_bgcolor: paperBg,
+                        font: { color: textColor },
+                        margin: { t: 40, b: 30, l: 30, r: 30 },
+                        showlegend: true
+                    };
+                    if (window.Plotly) {
+                        window.Plotly.newPlot('tab-chart-pie', pieData, pieLayout, { responsive: true, displayModeBar: false });
+                    }
+
+                    // 2. Class Distribution Bar Chart
+                    const classes = Object.keys(data.class_distribution || {});
+                    const counts = Object.values(data.class_distribution || {});
+
+                    const barData = [{
+                        x: classes.length > 0 ? classes : ['No annotations'],
+                        y: counts.length > 0 ? counts : [0],
+                        type: 'bar',
+                        marker: { color: '#6366f1' }
+                    }];
+                    const barLayout = {
+                        title: { text: 'Class Distribution', font: { color: textColor, size: 14 } },
+                        paper_bgcolor: paperBg,
+                        plot_bgcolor: paperBg,
+                        font: { color: textColor },
+                        margin: { t: 40, b: 40, l: 40, r: 20 },
+                        xaxis: { gridcolor: isDark ? '#272730' : '#e2e4ea' },
+                        yaxis: { gridcolor: isDark ? '#272730' : '#e2e4ea' }
+                    };
+                    if (window.Plotly) {
+                        window.Plotly.newPlot('tab-chart-bar', barData, barLayout, { responsive: true, displayModeBar: false });
+                    }
+
+                } catch (err) {
+                    console.error('Failed to load project analytics:', err);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initProjectTabs);
+        } else {
+            initProjectTabs();
+        }
+    })();
     </script>
-    <script type="module" src="/static/js/main.js"></script>
 {% endblock %}

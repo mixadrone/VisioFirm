@@ -230,6 +230,17 @@ async function _selectImageInternal(imgElement, index = -1) {
                     imageInfoText.textContent = `${filename} | Resolution: ${currentImage.width}x${currentImage.height}`;
                 }
             }
+            const jumpInput = document.getElementById('image-jump-input');
+            const jumpTotal = document.getElementById('image-jump-total');
+            const curIdx = Array.from(thumbnailImages).indexOf(imgElement);
+            if (jumpInput && curIdx >= 0) {
+                jumpInput.value = curIdx + 1;
+                jumpInput.max = thumbnailImages.length;
+            }
+            if (jumpTotal && thumbnailImages) {
+                jumpTotal.textContent = thumbnailImages.length;
+            }
+
             updateAnnotationSummary();
             drawImage();
             setIsModified(false); // Clean state for newly active image
