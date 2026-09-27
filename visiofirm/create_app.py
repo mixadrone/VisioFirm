@@ -12,6 +12,7 @@ from visiofirm.routes.importer import router as import_router
 from visiofirm.security import SECRET_KEY
 from visiofirm.models.user import User
 from visiofirm.routes.dashboard import get_current_user_optional
+from visiofirm.errortracker import VFSessionTracker
 import os
 import mimetypes
 
@@ -43,9 +44,17 @@ app_instance = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup: init DB and session tracker so that app.tracker is always
+    # available regardless of whether the app was launched via run.py or
+    # directly via uvicorn (e.g. in Docker).
     init_db()
+    tracker = VFSessionTracker()
+    tracker.start_session()
+    app.tracker = tracker
     yield
+    # Shutdown: finalise the tracker session
+    tracker.end_session(print_path=False)
+
 
 def create_app():
     global app_instance

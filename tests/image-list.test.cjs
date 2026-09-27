@@ -9,7 +9,7 @@ function fixture(saved = null) {
     const inputs = [
         ['img_10.jpg', 'false', 'false', '2026-09-10'],
         ['img_2.jpg', 'false', 'true', '2026-09-02'],
-        ['img_1.jpg', 'true', 'true', '2026-09-01'],
+        ['img_1.jpg', 'true', 'false', '2026-09-01'],
         ['img_3 space.jpg', 'false', 'false', ''],
     ];
     const selectors = ['#grid-thumbnails .grid-card', '#list-table tbody tr', '#annotation-view .thumbnail-row'];
@@ -69,7 +69,7 @@ test('natural order stays synchronized across all views without changing databas
     assert.equal(f.stored().sort, 'name-desc');
 });
 
-test('filters use exclusive status with reviewed images taking precedence', () => {
+test('filters use exclusive status for reviewed and predicted images', () => {
     const f = fixture();
     for (const [filter, expected] of [['annotated', ['img_1.jpg']], ['preannotated', ['img_2.jpg']], ['unannotated', ['img_3 space.jpg', 'img_10.jpg']]]) {
         f.context.filterImages(filter);
@@ -106,7 +106,11 @@ test('all status and date orders have deterministic natural-name ties', () => {
 test('status updates, empty results and restored preferences rebuild navigation safely', () => {
     const f = fixture('{"sort":"name-desc","filter":"preannotated"}');
     assert.deepEqual(f.names(), ['img_2.jpg']);
-    for (const rows of Object.values(f.groups)) rows.find(row => row.dataset.id === 'img_2.jpg').dataset.annotated = 'true';
+    for (const rows of Object.values(f.groups)) {
+        const row = rows.find(row => row.dataset.id === 'img_2.jpg');
+        row.dataset.annotated = 'true';
+        row.dataset.preannotated = 'false';
+    }
     f.context.refreshImageList();
     assert.deepEqual(f.names(), []);
     assert.equal(f.elements['next-image-btn'].disabled, true);
@@ -140,4 +144,17 @@ test('status refresh does not detach and reinsert unchanged rows', () => {
     for (const rows of Object.values(f.groups)) rows[0].parentElement.appendChild = () => { moves++; };
     f.context.refreshImageList();
     assert.equal(moves, 0);
+});
+
+
+test('pending predictions override old approval in filters and sorting', () => {
+    const f = fixture();
+    for (const rows of Object.values(f.groups)) rows.find(row => row.dataset.id === 'img_1.jpg').dataset.preannotated = 'true';
+    f.context.filterImages('preannotated');
+    assert.deepEqual(f.names(), ['img_1.jpg', 'img_2.jpg']);
+    f.context.filterImages('annotated');
+    assert.deepEqual(f.names(), []);
+    for (const rows of Object.values(f.groups)) rows.find(row => row.dataset.id === 'img_1.jpg').dataset.preannotated = 'false';
+    f.context.refreshImageList();
+    assert.deepEqual(f.names(), ['img_1.jpg']);
 });

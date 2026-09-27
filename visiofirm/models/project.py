@@ -1,4 +1,6 @@
 import sqlite3
+from contextlib import closing
+from visiofirm.review_status import ANNOTATED_SQL, initialize_review_status
 import os
 from PIL import Image
 import json
@@ -23,7 +25,8 @@ class Project:
 
     def _initialize_db(self):
         """Initialize the SQLite database with required tables."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            initialize_review_status(conn)
             cursor = conn.cursor()
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS Project_Configuration (
@@ -178,16 +181,8 @@ class Project:
             return images
 
     def get_images_with_status(self):
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT i.absolute_path, 
-                       EXISTS (
-                           SELECT 1 FROM Annotations a WHERE a.image_id = i.image_id
-                       ) as is_annotated
-                FROM Images i
-            ''')
-            return cursor.fetchall()
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            return conn.execute(f"SELECT i.absolute_path, {ANNOTATED_SQL} AS is_annotated FROM Images i").fetchall()
 
     def get_classes(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -198,7 +193,7 @@ class Project:
             return classes
 
     def get_setup_type(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT setup_type FROM Project_Configuration WHERE project_name = ?', (self.name,))
             result = cursor.fetchone()
@@ -528,7 +523,7 @@ class Project:
 
     def get_annotations(self, image_path):
         print(f"Retrieving annotations for image '{os.path.basename(image_path)}' in project '{self.name}'...") 
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT image_id FROM Images WHERE absolute_path = ?', (image_path,))
             image_id = cursor.fetchone()
@@ -1015,12 +1010,8 @@ class Project:
             return count
 
     def get_annotated_image_count(self):
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(DISTINCT image_id) FROM Annotations')
-            count = cursor.fetchone()[0]
-            logger.info(f"Annotated image count for project {self.name}: {count}")
-            return count
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            return conn.execute(f"SELECT COUNT(*) FROM Images i WHERE {ANNOTATED_SQL}").fetchone()[0]
 
     def get_class_distribution(self):
         with sqlite3.connect(self.db_path) as conn:

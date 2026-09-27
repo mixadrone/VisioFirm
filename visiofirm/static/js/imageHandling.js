@@ -27,7 +27,7 @@ import {
 } from './globals.js';
 import { drawImage, resetView, fitToLabels } from './annotationDrawing.js';
 import { updateAnnotationStatus, updateClassTags } from './main.js';
-import { executeSave } from './saveHandling.js';
+import { executeSave, setImageApprovalState, syncApprovalButtons, waitForApprovalOperation } from './saveHandling.js';
 
 export function updateAnnotationSummary() {
     const summary = document.getElementById('annotation-summary');
@@ -84,6 +84,8 @@ async function _selectImageInternal(imgElement, index = -1) {
     }
     console.log('Selecting Image:', imageKey);
 
+    await waitForApprovalOperation();
+
     // Auto-save previous image if auto-save is enabled and modifications were made
     if (currentImageKey && isAutoSaveEnabled && isModified) {
         try {
@@ -105,12 +107,14 @@ async function _selectImageInternal(imgElement, index = -1) {
     return new Promise((resolve) => {
         img.onload = async () => {
             setCurrentImageKey(imageKey);
+            syncApprovalButtons();
             setCurrentImageIndex(Array.from(thumbnailImages).indexOf(imgElement));
             setCurrentImage(img);
 
             let loadedAnnotations = [];
             let loadedPreannotations = [];
             let isReviewed = false;
+            let isUnreviewed = false;
             let statusLoaded = false;
             try {
                 const projectName = JSON.parse(document.getElementById('app-config').textContent).projectName;
@@ -135,6 +139,7 @@ async function _selectImageInternal(imgElement, index = -1) {
                         isPreannotation: true // Flag for preannotations
                     }));
                     isReviewed = result.reviewed || false;
+                    isUnreviewed = result.unreviewed || false;
                     console.log('Fetched Annotations:', loadedAnnotations);
                     console.log('Fetched Preannotations:', loadedPreannotations);
                     console.log('Reviewed:', isReviewed);
@@ -205,8 +210,9 @@ async function _selectImageInternal(imgElement, index = -1) {
                 console.warn('Error finding image id element:', err);
                 imageId = null;
             }
-            const isAnnotated = loadedAnnotations.length > 0 || isReviewed;
-            const isPreannotated = loadedPreannotations.length > 0 && !isAnnotated;
+            const isPreannotated = loadedPreannotations.length > 0;
+            const isAnnotated = !isPreannotated && !isUnreviewed && (loadedAnnotations.length > 0 || isReviewed);
+            if (statusLoaded) setImageApprovalState(imageKey, isAnnotated, isUnreviewed);
             if (statusLoaded) updateAnnotationStatus(imageKey, isAnnotated, isPreannotated);
 
             const statusElement = document.querySelector(`[data-id="${filename}"] .image-status`);

@@ -72,8 +72,8 @@ let storageKey;
 let excludedImageIndex = 0;
 
 function imageStatus(row) {
-    return row.dataset.annotated === 'true' ? 'annotated'
-        : row.dataset.preannotated === 'true' ? 'preannotated' : 'unannotated';
+    return row.dataset.preannotated === 'true' ? 'preannotated'
+        : row.dataset.annotated === 'true' ? 'annotated' : 'unannotated';
 }
 
 function imagePath(img) {

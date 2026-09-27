@@ -1167,3 +1167,19 @@
 .grid-header { flex-wrap: wrap; gap: 12px; position: relative; z-index: 20; }
 .grid-controls { flex-wrap: wrap; }
 #image-filter-notice { position: absolute; top: 0; left: 0; right: 0; z-index: 5; background: #fff8df; margin: 0; }
+
+.unapprove-btn {
+    height: 36px;
+    min-height: 36px;
+    align-self: center;
+    font-size: 0.95rem;
+    padding: 8px 12px;
+    border: 1px solid #d97706;
+    border-radius: 6px;
+    background: transparent;
+    color: #d97706;
+    cursor: pointer;
+    font-weight: 600;
+}
+.unapprove-btn:hover:not(:disabled) { background: rgba(217, 119, 6, 0.12); }
+.unapprove-btn:disabled { opacity: 0.45; cursor: default; }

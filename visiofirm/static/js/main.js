@@ -42,6 +42,7 @@ function hideLoadingAnimation() {
 
 // In main.js
 export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
+    if (isPreannotated) isAnnotated = false;
     const filename = decodeURIComponent(imagePath.replaceAll('\\', '/').split('/').pop());
     const findRow = selector => Array.from(document.querySelectorAll(selector)).find(row => row.dataset.id === filename);
     const gridCard = findRow('#grid-thumbnails .grid-card');

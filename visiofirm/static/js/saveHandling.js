@@ -7,6 +7,65 @@ let currentUpdateAnnotationStatus = null;
 let toastTimeout = null;
 let saveInFlight = null;
 let manualSavePending = false;
+let unapproveInFlight = null;
+const imageApproval = new Map();
+
+export function syncApprovalButtons() {
+    const busy = Boolean(saveInFlight || unapproveInFlight || manualSavePending);
+    for (const id of ['approve-btn', 'save-btn']) {
+        const button = document.getElementById(id);
+        if (button) button.disabled = busy;
+    }
+    const button = document.getElementById('unapprove-btn');
+    if (button) button.disabled = busy || !imageApproval.get(currentImageKey)?.annotated;
+}
+
+export function setImageApprovalState(imageKey, annotated, unreviewed = false) {
+    imageApproval.set(imageKey, { annotated, unreviewed });
+    syncApprovalButtons();
+}
+
+export async function waitForApprovalOperation() {
+    if (unapproveInFlight) await unapproveInFlight;
+    if (saveInFlight) await saveInFlight;
+}
+
+export function unapproveCurrentImage() {
+    if (unapproveInFlight) return unapproveInFlight;
+    if (saveInFlight || manualSavePending || !imageApproval.get(currentImageKey)?.annotated) return Promise.resolve(false);
+    const imageKey = currentImageKey;
+    unapproveInFlight = performUnapprove(imageKey).finally(() => {
+        unapproveInFlight = null;
+        syncApprovalButtons();
+    });
+    syncApprovalButtons();
+    return unapproveInFlight;
+}
+
+async function performUnapprove(imageKey) {
+    try {
+        const config = JSON.parse(document.getElementById('app-config').textContent);
+        const response = await fetch('/annotation/unapprove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project: config.projectName, image: decodeURIComponent(imageKey.split('/').pop()) })
+        });
+        const result = await response.json();
+        if (response.status === 404 && result.detail === 'Not Found') {
+            showAutoSaveToast('Restart VisioFirm to enable Unapprove', true);
+            return false;
+        }
+        if (!response.ok || !result.success) throw new Error(result.detail || result.error || `Server error: ${response.status}`);
+        setImageApprovalState(imageKey, false, true);
+        if (currentUpdateAnnotationStatus) currentUpdateAnnotationStatus(imageKey, false, Boolean(result.preannotated));
+        showAutoSaveToast('Approval removed');
+        return true;
+    } catch (error) {
+        console.error('Unapprove error:', error);
+        showAutoSaveToast('Could not remove approval', true);
+        return false;
+    }
+}
 
 export function showAutoSaveToast(message = 'Auto-saved', isError = false) {
     let toast = document.getElementById('autosave-toast');
@@ -30,8 +89,13 @@ export function showAutoSaveToast(message = 'Auto-saved', isError = false) {
 }
 
 export function executeSave(isAutoSave = false, updateAnnotationStatus = null) {
+    if (unapproveInFlight) return unapproveInFlight.then(() => executeSave(isAutoSave, updateAnnotationStatus));
     if (saveInFlight) return saveInFlight;
-    saveInFlight = performSave(isAutoSave, updateAnnotationStatus).finally(() => { saveInFlight = null; });
+    saveInFlight = performSave(isAutoSave, updateAnnotationStatus).finally(() => {
+        saveInFlight = null;
+        syncApprovalButtons();
+    });
+    syncApprovalButtons();
     return saveInFlight;
 }
 
@@ -44,6 +108,7 @@ async function performSave(isAutoSave, updateAnnotationStatus) {
     }
 
     const savedImageKey = currentImageKey;
+    const approve = !isAutoSave || !imageApproval.get(savedImageKey)?.unreviewed;
     const originalAnnotations = JSON.stringify(annotations);
 
     // Filter annotations to include only regular annotations and pre-annotations above confidence threshold
@@ -111,7 +176,7 @@ async function performSave(isAutoSave, updateAnnotationStatus) {
                 project: config.projectName,
                 image: imageFilename,
                 annotations: cocoAnnotations,
-                approve: true
+                approve
             })
         });
 
@@ -129,7 +194,8 @@ async function performSave(isAutoSave, updateAnnotationStatus) {
             updateAnnotationSummary();
             saveCacheToStorage();
         }
-        if (typeof statusFn === 'function') statusFn(savedImageKey, true);
+        setImageApprovalState(savedImageKey, approve, !approve);
+        if (typeof statusFn === 'function') statusFn(savedImageKey, approve);
 
         if (isAutoSave || isAdvanceAfterSaveEnabled) {
             showAutoSaveToast(isAutoSave ? 'Auto-saved' : 'Annotations saved');
@@ -155,7 +221,7 @@ async function performSave(isAutoSave, updateAnnotationStatus) {
 }
 
 export async function approveAndMaybeAdvance(updateAnnotationStatus = null) {
-    if (manualSavePending) return;
+    if (manualSavePending || unapproveInFlight || saveInFlight) return;
     manualSavePending = true;
     const savedImageKey = currentImageKey;
     const buttons = ['approve-btn', 'save-btn'].map(id => document.getElementById(id)).filter(Boolean);
@@ -167,12 +233,15 @@ export async function approveAndMaybeAdvance(updateAnnotationStatus = null) {
         }
     } finally {
         manualSavePending = false;
-        buttons.forEach(button => { button.disabled = false; });
+        syncApprovalButtons();
     }
 }
 
 export function initSaveHandling(updateAnnotationStatus) {
     currentUpdateAnnotationStatus = updateAnnotationStatus;
+    const unapproveBtn = document.getElementById('unapprove-btn');
+    if (unapproveBtn) unapproveBtn.addEventListener('click', () => unapproveCurrentImage());
+    syncApprovalButtons();
     const approveBtn = document.getElementById('approve-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', async function(e) {

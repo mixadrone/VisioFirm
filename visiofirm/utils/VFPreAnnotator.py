@@ -14,6 +14,7 @@ from tqdm import tqdm
 from groundingdino.util.inference import load_model, predict
 from groundingdino.datasets import transforms as T
 from visiofirm.config import WEIGHTS_FOLDER
+from visiofirm.review_status import ANNOTATED_SQL, initialize_review_status
 from visiofirm.utils.downloader import get_or_download_model
 
 os.makedirs(WEIGHTS_FOLDER, exist_ok=True)
@@ -350,6 +351,7 @@ class PreAnnotator:
         self.progress_callback = progress_callback
         # Database connection
         self.conn = sqlite3.connect(self.config_db_path)
+        initialize_review_status(self.conn)
         cursor = self.conn.cursor()
       
         # Verify database structure
@@ -432,16 +434,16 @@ class PreAnnotator:
         with tqdm(total=total_images, desc=f"Pre-annotating {self.model_type.upper()}", unit="img") as pbar:
             for image_id, image_path in self.images:
                 try:
-                    # Skip if already annotated
-                    cursor.execute("""
-                        SELECT EXISTS(
-                            SELECT 1 FROM Preannotations WHERE image_id = ?
+                    # Approval includes reviewed empty images. Keep existing labels intact.
+                    cursor.execute(f"""
+                        SELECT {ANNOTATED_SQL} OR EXISTS(
+                            SELECT 1 FROM Preannotations p WHERE p.image_id = i.image_id
                         ) OR EXISTS(
-                            SELECT 1 FROM Annotations WHERE image_id = ?
-                        )
-                    """, (image_id, image_id))
+                            SELECT 1 FROM Annotations a WHERE a.image_id = i.image_id
+                        ) FROM Images i WHERE i.image_id = ?
+                    """, (image_id,))
                     if cursor.fetchone()[0]:
-                        logger.info(f"Skipping image {image_path} (image_id: {image_id}) as it already has preannotations or annotations.")
+                        logger.info(f"Skipping image {image_path} (image_id: {image_id}): approved or already has annotations/preannotations.")
                         skipped += 1
                         current_progress = ((processed + skipped) / total_images) * 100
                         pbar.update(1)
@@ -619,6 +621,7 @@ class PreAnnotator:
                     if self.progress_callback:
                         self.progress_callback(current_progress)
                 except Exception as e:
+                    self.conn.rollback()
                     logger.error(f"Error processing image {image_path}: {str(e)}")
                     skipped += 1 # Count errors as skipped for progress
                     current_progress = ((processed + skipped) / total_images) * 100

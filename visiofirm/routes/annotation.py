@@ -8,6 +8,7 @@ import os
 import json
 from visiofirm.config import PROJECTS_FOLDER, TMP_FOLDER
 from visiofirm.projects import VFProjects
+from visiofirm.review_status import ANNOTATED_SQL, APPROVED_SQL, set_image_approval
 from visiofirm.models.project import Project 
 from visiofirm.models.user import get_user_by_id
 from visiofirm.preannotator import VFPreAnnotator
@@ -304,28 +305,15 @@ async def annotation(
                     )
                 ''')
                 
-                cursor.execute('''
-                    SELECT i.absolute_path
-                    FROM Images i
-                    LEFT JOIN Annotations a ON i.image_id = a.image_id
-                    LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
-                    WHERE a.annotation_id IS NOT NULL OR r.image_id IS NOT NULL
-                    GROUP BY i.image_id
-                ''')
+                cursor.execute(f'SELECT i.absolute_path FROM Images i WHERE {ANNOTATED_SQL}')
                 annotated_images = {
                     os.path.join('/projects', project_name, 'images', os.path.basename(row[0]))
                     for row in cursor.fetchall()
                 }
             
-                cursor.execute('''
-                    SELECT i.absolute_path
-                    FROM Images i
-                    JOIN Preannotations p ON i.image_id = p.image_id
-                    LEFT JOIN Annotations a ON i.image_id = a.image_id
-                    LEFT JOIN ReviewedImages r ON i.image_id = r.image_id
-                    WHERE a.annotation_id IS NULL AND r.image_id IS NULL
-                    GROUP BY i.image_id
-                ''')
+                cursor.execute(f'''SELECT i.absolute_path FROM Images i
+                    WHERE NOT {ANNOTATED_SQL}
+                    AND EXISTS (SELECT 1 FROM Preannotations p WHERE p.image_id = i.image_id)''')
                 preannotated_images = {
                     os.path.join('/projects', project_name, 'images', os.path.basename(row[0]))
                     for row in cursor.fetchall()
@@ -442,7 +430,7 @@ async def get_annotations(
         absolute_image_path = os.path.abspath(os.path.join(PROJECTS_FOLDER, project_name, 'images', image_path))
         logger.info(f"Looking up image with absolute path: {absolute_image_path}")
         
-        with sqlite3.connect(project.db_path) as conn:
+        with closing(sqlite3.connect(project.db_path)) as conn, conn:
             cursor = conn.cursor()
             cursor.execute('SELECT image_id FROM Images WHERE absolute_path = ?', (absolute_image_path,))
             image_id = cursor.fetchone()
@@ -476,6 +464,8 @@ async def get_annotations(
             # Check if the image is reviewed
             cursor.execute('SELECT 1 FROM ReviewedImages WHERE image_id = ?', (image_id,))
             reviewed = cursor.fetchone() is not None
+            cursor.execute('SELECT 1 FROM UnreviewedImages WHERE image_id = ?', (image_id,))
+            unreviewed = cursor.fetchone() is not None
 
         result = project.get_annotations(absolute_image_path)
         annotations = result['annotations']
@@ -488,13 +478,44 @@ async def get_annotations(
             'success': True,
             'annotations': annotations,
             'preannotations': preannotations,
-            'reviewed': reviewed
+            'reviewed': reviewed,
+            'unreviewed': unreviewed
         }
     except Exception as e:
         tracker.log_error(e, step='Get annotations')
         logger.error(f"Error fetching annotations and preannotations: {e}")
         print(f"Error fetching annotations for {image_path} in {project_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post('/unapprove')
+async def unapprove_image(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie)
+):
+    data = await request.json()
+    if not isinstance(data, dict) or not all(isinstance(data.get(key), str) and data[key] for key in ('project', 'image')):
+        raise HTTPException(status_code=400, detail='project and image are required')
+    project_name, filename = data['project'], data['image']
+    if any(value in ('.', '..') or '/' in value or '\\' in value for value in (project_name, filename)):
+        raise HTTPException(status_code=400, detail='Invalid project or image name')
+    project_path = os.path.realpath(os.path.join(PROJECTS_FOLDER, project_name))
+    if os.path.commonpath([os.path.realpath(PROJECTS_FOLDER), project_path]) != os.path.realpath(PROJECTS_FOLDER):
+        raise HTTPException(status_code=400, detail='Invalid project path')
+    if not os.path.isfile(os.path.join(project_path, 'config.db')):
+        raise HTTPException(status_code=404, detail='Project not found')
+    project = Project(project_name, '', '', project_path)
+    with closing(sqlite3.connect(project.db_path)) as conn, conn:
+        matches = [row[0] for row in conn.execute('SELECT image_id, absolute_path FROM Images')
+                   if os.path.basename(row[1]).casefold() == filename.casefold()]
+        if not matches:
+            raise HTTPException(status_code=404, detail='Image not found')
+        if len(matches) != 1:
+            raise HTTPException(status_code=409, detail='Ambiguous image filename')
+        image_id = matches[0]
+        set_image_approval(conn, image_id, False)
+        preannotated = conn.execute('SELECT 1 FROM Preannotations WHERE image_id = ? LIMIT 1', (image_id,)).fetchone() is not None
+    return {'success': True, 'reviewed': False, 'unreviewed': True, 'preannotated': preannotated}
+
 
 @router.post('/save_annotations')
 async def save_annotations(
@@ -511,6 +532,9 @@ async def save_annotations(
         project_name = data['project']
         image_filename = data['image']  # expects just the filename, e.g., "image.jpg"
         raw_annotations = data['annotations']
+        approve = data.get('approve', True)
+        if not isinstance(approve, bool):
+            raise ValueError('approve must be a boolean')
 
         print(f"Saving annotations for image {image_filename} in project {project_name} ({len(raw_annotations)} annotations)...")
 
@@ -519,7 +543,7 @@ async def save_annotations(
         absolute_image_path = os.path.abspath(os.path.join(PROJECTS_FOLDER, project_name, 'images', secure_filename(image_filename)))
         logger.info(f"Looking up image with absolute path: {absolute_image_path}")
 
-        with sqlite3.connect(project.db_path) as conn:
+        with closing(sqlite3.connect(project.db_path)) as conn, conn:
             cursor = conn.cursor()
             cursor.execute('SELECT image_id FROM Images WHERE absolute_path = ?', (absolute_image_path,))
             image_id = cursor.fetchone()
@@ -563,6 +587,12 @@ async def save_annotations(
             image_id = image_id[0]
 
             # Proceed with saving (rest of the function unchanged)
+            if not approve:
+                was_annotated = cursor.execute(
+                    f'SELECT {APPROVED_SQL} FROM Images i WHERE i.image_id = ?', (image_id,)
+                ).fetchone()[0]
+                if not was_annotated:
+                    set_image_approval(conn, image_id, False)
             cursor.execute('DELETE FROM Annotations WHERE image_id = ?', (image_id,))
             cursor.execute('DELETE FROM Preannotations WHERE image_id = ?', (image_id,))
 
@@ -628,13 +658,11 @@ async def save_annotations(
                     saved_count += 1
                     save_pbar.update(1)
 
-            # Mark the image as reviewed
-            cursor.execute('''
-                INSERT OR REPLACE INTO ReviewedImages (image_id) VALUES (?)
-            ''', (image_id,))
+            if approve:
+                set_image_approval(conn, image_id, True)
 
             conn.commit()
-            logger.info(f"Saved {saved_count} annotations for {absolute_image_path} and marked as reviewed")
+            logger.info(f"Saved {saved_count} annotations for {absolute_image_path} (approve={approve})")
 
         tracker.log_substep('Annotations saved', details={'saved_count': saved_count, 'image': image_filename, 'total_attempted': len(raw_annotations)})
         tracker.log_step('Annotations save completed', details={'project': project_name, 'user_id': current_user.id})

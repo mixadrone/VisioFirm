@@ -1,0 +1,69 @@
+# VisioFirm — Docker Compose
+# ──────────────────────────────────────────────────────
+# First run (builds image, ~10 min):
+#   docker compose up --build -d
+#
+# After changing .py files — just restart, no rebuild needed:
+#   docker compose restart
+#
+# After changing requirements.txt — full rebuild required:
+#   docker compose up --build -d
+#
+# Stop (data in ./visiofirm_data stays safe):
+#   docker compose down
+#
+# Access: http://localhost:9000
+#
+# Data folder (visible in Windows Explorer):
+#   Z:\_mydev\VisioFirm\visiofirm_data\
+#     ├── users.db              ← user accounts
+#     ├── weights\              ← CLIP / SAM2 / GroundingDINO weights
+#     ├── tmp\                  ← temporary processing files
+#     └── <ProjectName>\        ← one folder per project
+#           ├── config.db       ← project SQLite database
+#           └── images\         ← project images
+
+services:
+  visiofirm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Container name for easy reference in logs / exec commands
+    container_name: visiofirm
+
+    # Map host port 9000 → container port 9000.
+    # Change the left side if 9000 is already occupied on your host.
+    ports:
+      - "9000:9000"
+
+    volumes:
+      # Source code bind mount: changes to .py files on the host are
+      # immediately visible inside the container after `docker compose restart`.
+      # No image rebuild needed for code changes.
+      - .:/app
+      # Persistent data: projects, SQLite DBs, AI model weights.
+      # Visible as a regular folder in Windows Explorer.
+      # - ./visiofirm_data:/root/.cache/visiofirm_cache
+      - C:/Users/mixad/AppData/Local/visiofirm_cache:/root/.cache/visiofirm_cache
+
+    # Restart automatically after host reboot or unexpected crash.
+    restart: unless-stopped
+
+    # ── GPU support (NVIDIA) ─────────────────────────────────────────
+    # Requires: nvidia-container-toolkit installed on the host and
+    # Docker daemon configured to use the nvidia runtime.
+    # Remove / comment this section if you want CPU-only mode.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all       # expose all available GPUs; set to 1 for a single GPU
+              capabilities: [gpu]
+
+    # Environment hints
+    environment:
+      # Force Linux cache path (already the default in config.py for Linux)
+      - HOME=/root
+

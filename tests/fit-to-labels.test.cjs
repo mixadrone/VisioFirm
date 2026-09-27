@@ -143,14 +143,16 @@ test('canvas resizing applies the preference using current annotations', () => {
 
 test('image switching fits after asynchronous loading and cache restoration without saving', async () => {
     const c = fixture();
+    const statuses = [];
     Object.assign(c, {
         currentImageKey: null, annotationCache: {}, undoStack: {}, isFitToLabelsEnabled: true,
         isAutoSaveEnabled: true, console: { log() {}, warn() {}, error() {} }, URL,
         window: { location: { href: 'http://localhost/' } },
         getComputedStyle: () => ({}),
-        updateTagHighlights() {}, updateAnnotationStatus() {}, updateClassTags() {},
+        updateTagHighlights() {}, updateAnnotationStatus(...args) { statuses.push(args); }, updateClassTags() {},
+        setImageApprovalState() {}, syncApprovalButtons() {}, async waitForApprovalOperation() {},
         executeSave() { assert.fail('Fitting must not trigger auto-save'); },
-        fetch: async () => ({ ok: true, json: async () => ({ success: true, annotations: [],
+        fetch: async () => ({ ok: true, json: async () => ({ success: true, reviewed: true, annotations: [],
             preannotations: [rect(900, 450, 100, 50, { confidence: 0.9 })] }) }),
         Image: class {
             constructor() { this.width = 2000; this.height = 1000; }
@@ -172,6 +174,7 @@ test('image switching fits after asynchronous loading and cache restoration with
     c.thumbnailImages = [first, second];
     vm.runInContext(source('imageHandling.js'), c);
     await c.selectImage(first);
+    assert.deepEqual(statuses[0], ['/images/a.jpg', false, true]);
     assert.equal(c.viewport.zoom, 9);
     assert.equal(c.annotations[0].isPreannotation, true);
     assert.equal(c.isModified, false);
