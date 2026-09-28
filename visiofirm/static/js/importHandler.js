@@ -256,11 +256,13 @@ async function uploadFilesForProject(files, fileList, dropIcon, compressMsg, pro
         const endpoint = isImportModal ? '/import_images' : '/create_project';
         storedUploadId = await uploadFiles(files, endpoint, {}, updateProgress);
 
-        fileList.innerHTML = '';
-        fileList.style.display = 'none';
-        dropIcon?.classList.remove('loaded');
-        compressMsg.style.display = 'none';
-        progressContainer.innerHTML = '<p class="upload-success">Upload complete!</p>';
+        progressContainer.querySelectorAll('.progress').forEach(progress => {
+            progress.style.width = '100%';
+        });
+        const status = document.createElement('p');
+        status.className = 'upload-success';
+        status.textContent = 'Upload complete! Ready to import.';
+        progressContainer.appendChild(status);
         submitBtn?.removeAttribute('disabled');
     } catch (error) {
         console.error('Upload failed:', error);

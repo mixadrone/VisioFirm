@@ -3114,3 +3114,127 @@ html, body {
     position: relative;
     padding: 24px;
 }
+.magic-model-picker {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.top-annotation-toolbar .magic-model-trigger {
+    color: var(--text-light) !important;
+}
+
+.top-annotation-toolbar .magic-model-trigger[aria-expanded="true"] {
+    background: var(--surface-hover) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-color) !important;
+}
+
+.magic-model-chevron {
+    margin-left: 2px;
+    font-size: 0.58rem;
+    transition: transform 0.2s ease;
+}
+
+.magic-model-trigger[aria-expanded="true"] .magic-model-chevron {
+    transform: rotate(180deg);
+}
+
+.magic-model-menu {
+    position: absolute;
+    top: calc(100% + 9px);
+    left: 0;
+    z-index: 100;
+    width: 248px;
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--surface-color);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.magic-model-menu[hidden] {
+    display: none;
+}
+
+.magic-model-menu-heading {
+    padding: 8px 10px 6px;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.magic-model-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-color);
+    text-align: left;
+    cursor: pointer;
+}
+
+.magic-model-option:hover,
+.magic-model-option:focus-visible {
+    background: var(--surface-hover);
+    outline: none;
+}
+
+.magic-model-option[aria-checked="true"] {
+    background: var(--primary-alpha);
+}
+
+.magic-model-option-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--surface-hover);
+    color: var(--text-light);
+    font-size: 0.72rem;
+}
+
+.magic-model-option[aria-checked="true"] .magic-model-option-icon {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.magic-model-option-copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.magic-model-option-copy strong {
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.magic-model-option-copy small {
+    color: var(--text-light);
+    font-size: 0.66rem;
+    white-space: nowrap;
+}
+
+.magic-model-check {
+    margin-left: auto;
+    color: var(--primary-color);
+    font-size: 0.72rem;
+    opacity: 0;
+}
+
+.magic-model-option[aria-checked="true"] .magic-model-check {
+    opacity: 1;
+}
+
+#magic-model-status:not([hidden]) {
+    align-self: center;
+    font-size: 0.75rem;
+}

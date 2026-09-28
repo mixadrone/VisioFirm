@@ -14,21 +14,9 @@ import {
     getResolvedClassStyle,
     normalizeStyleConfig,
     setCurrentStyleConfig,
+    hexToRgba,
+    structuredCloneSafe,
 } from './annotationStyles.js';
-
-function clone(value) {
-    return typeof structuredClone === 'function'
-        ? structuredClone(value)
-        : JSON.parse(JSON.stringify(value));
-}
-
-function hexToRgba(hex, opacity) {
-    const safeHex = `${hex}`.slice(0, 7);
-    const r = parseInt(safeHex.slice(1, 3), 16);
-    const g = parseInt(safeHex.slice(3, 5), 16);
-    const b = parseInt(safeHex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
 
 export function applyCardDisplaySettings() {
     // 1. Class dots
@@ -374,7 +362,7 @@ export function initAnnotationStyleSettings(config) {
             if (!response.ok || !payload.success) {
                 throw new Error(payload.detail || payload.error || 'Failed to save style settings');
             }
-            config.annotationStyleConfig = clone(draftConfig);
+            config.annotationStyleConfig = structuredCloneSafe(draftConfig);
             setCurrentStyleConfig(draftConfig, classes);
             drawImage();
             // Show brief success feedback in the save button

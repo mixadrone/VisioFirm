@@ -21,17 +21,17 @@ import { initializeGridView, switchToAnnotationView, switchToGridView, sortImage
 import { initToolControls } from './toolControls.js';
 import { initAnnotationInteraction } from './annotationInteraction.js';
 import { initKeyboardShortcuts } from './keyboardShortcuts.js';
-import { initShortcutsSidebar, updateShortcutsNotice } from './shortcutsHelp.js?v=20260928-v8';
+import { initShortcutsSidebar, updateShortcutsNotice } from './shortcutsHelp.js';
 import { initSaveHandling } from './saveHandling.js';
 import { selectImage, resizeCanvas, updateAnnotationSummary } from './imageHandling.js';
 import { drawImage } from './annotationDrawing.js';
 import { pushToUndoStack } from './annotationCore.js';
-import { setConfidenceThreshold } from '/static/js/globals.js';
-import { initImportModal } from '/static/js/importHandler.js';
-import { showLoadingOverlay, hideLoadingOverlay } from '/static/js/spinnerLoader.js';
+import { setConfidenceThreshold } from './globals.js';
+import { initImportModal } from './importHandler.js';
+import { showLoadingOverlay, hideLoadingOverlay } from './spinnerLoader.js';
 import { initializeSegmentor } from './sam.js';
 import { initAnnotationStyleSettings } from './annotationStyleSettings.js';
-import { initClassManagement } from './classManagement.js?v=20260928-v12';
+import { initClassManagement } from './classManagement.js';
 
 function hideLoadingAnimation() {
     const loadingOverlay = document.getElementById('loading-overlay');

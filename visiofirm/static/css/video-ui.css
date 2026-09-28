@@ -1,0 +1,108 @@
+/* Video studio follows the shared application palette. */
+html[data-theme] body:has(.annotation-container) { background: var(--bg-color); color: var(--text-color); }
+html[data-theme] body:has(.annotation-container) main { min-width: 0; }
+html[data-theme] .annotation-container { height: calc(100dvh - 64px); min-height: 500px; gap: 0; background: var(--bg-color); }
+html[data-theme] .videos-classes-wrapper { width: clamp(180px, 17vw, 260px); flex-shrink: 0; background: var(--surface-color); border-color: var(--border-color); }
+html[data-theme] .videos-list { padding: 12px; padding-bottom: max(180px, 25vh); }
+html[data-theme] .video-item { padding: 8px; border: 1px solid transparent; }
+html[data-theme] .video-item:hover { background: var(--surface-hover); }
+html[data-theme] .video-item.selected { background: rgba(99, 102, 241, .16); border-color: var(--primary-color); }
+html[data-theme] .video-item p { color: var(--text-color); }
+html[data-theme] .video-item img { background: var(--bg-color); box-shadow: none; }
+html[data-theme] .classes-bottom { height: 23vh; min-height: 150px; padding: 10px; background: var(--surface-color); border-color: var(--border-color); }
+html[data-theme] .classes-bottom td { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); text-align: left; border-radius: 7px; }
+html[data-theme] .classes-bottom td.selected { background: rgba(99, 102, 241, .16); border-color: var(--primary-color); }
+html[data-theme] .middle-column { min-width: 0; background: var(--bg-color); }
+html[data-theme] .video-canvas { min-height: 0; background: #101115; }
+html[data-theme="light"] .video-canvas { background: #e8e9f1; }
+html[data-theme] .timeline { height: clamp(170px, 25vh, 240px); background: var(--surface-color); border-color: var(--border-color); padding: 14px; }
+html[data-theme] .timeline-top { min-height: 0; overflow: visible; }
+html[data-theme] .timeline-top h3 { color: var(--text-color); }
+html[data-theme] .timeline-top button,
+html[data-theme] .right-controls .control-btn { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; }
+html[data-theme] .timeline-top button:hover,
+html[data-theme] .right-controls .control-btn:hover { background: var(--surface-hover); border-color: var(--primary-color); }
+html[data-theme] .timeline-top #export-btn,
+html[data-theme] .timeline-top #vf-tracker-btn,
+html[data-theme] .right-controls #save-btn { background: var(--primary-color) !important; color: #fff; border-color: var(--primary-color); animation: none; }
+html[data-theme] .timeline-top #remove-segment-annotations,
+html[data-theme] .timeline-top #remove-segment-preannotations { background: transparent; color: #ef6b6b; border-color: rgba(239, 68, 68, .4); }
+html[data-theme] .timeline-frames { background: var(--bg-color); border-color: var(--border-color); }
+html[data-theme] .right-controls { background: var(--surface-color); border-left: 1px solid var(--border-color); }
+html[data-theme] .right-controls .control-btn.selected { background: var(--primary-color); border-color: var(--primary-color); }
+html[data-theme] #current-time { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 7px; padding: 6px; }
+html[data-theme] #loading-overlay { background: var(--vf-overlay) !important; color: var(--text-color); backdrop-filter: blur(5px); }
+html[data-theme] #loading-overlay > div:first-child,
+html[data-theme] #loading-status { color: var(--text-color) !important; }
+html[data-theme] #progress-bar { background: var(--border-color) !important; }
+html[data-theme] #progress-fill { background: var(--primary-color) !important; }
+
+html[data-theme] #tracker-modal,
+html[data-theme] #export-modal,
+html[data-theme] #confirm-modal { background: var(--vf-overlay) !important; backdrop-filter: blur(5px); padding: 16px; box-sizing: border-box; }
+html[data-theme] #tracker-modal > div,
+html[data-theme] #export-modal > div,
+html[data-theme] #confirm-modal .confirm-content {
+    box-sizing: border-box;
+    background: var(--surface-color) !important;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--vf-shadow);
+    width: min(100%, 640px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+}
+html[data-theme] #tracker-modal > div,
+html[data-theme] #export-modal > div { width: min(100%, 960px); }
+html[data-theme] #export-modal h2 { background: none; -webkit-text-fill-color: currentColor; }
+html[data-theme] #videos-section,
+html[data-theme] #frames-section,
+html[data-theme] #path-section { background: var(--bg-color); border-color: var(--border-color); }
+html[data-theme] #confirm-modal .confirm-content { width: min(100%, 440px); color: var(--text-color); }
+html[data-theme] #confirm-modal #confirm-message { color: var(--text-color) !important; }
+html[data-theme] #tracker-modal :is(h2, h3, h4, label, p),
+html[data-theme] #export-modal :is(h2, h3, h4, label, p) { color: var(--text-color); }
+html[data-theme] #tracker-modal .method-option,
+html[data-theme] #tracker-modal .option-btn,
+html[data-theme] #export-modal .format-option,
+html[data-theme] #export-modal .checkbox-wrapper,
+html[data-theme] #export-modal .video-checkbox-item { background: var(--bg-color); color: var(--text-color); border-color: var(--border-color) !important; }
+html[data-theme] #tracker-modal .method-option.selected,
+html[data-theme] #tracker-modal .option-btn.selected,
+html[data-theme] #export-modal .format-option.selected { border-color: var(--primary-color) !important; background: rgba(99, 102, 241, .15); }
+html[data-theme] #tracker-modal button,
+html[data-theme] #export-modal button,
+html[data-theme] #confirm-modal button { border-radius: 8px; min-height: 38px; }
+html[data-theme] #tracker-modal #start-tracking,
+html[data-theme] #tracker-modal #next-step,
+html[data-theme] #export-modal #export-start { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+html[data-theme] #tracker-modal #prev-step,
+html[data-theme] #tracker-modal #cancel-tracking,
+html[data-theme] #export-modal #export-cancel,
+html[data-theme] #confirm-modal #confirm-cancel { background: var(--bg-color) !important; border: 1px solid var(--border-color) !important; color: var(--text-color) !important; }
+html[data-theme] #confirm-modal #confirm-yes { background: #dc3545; color: #fff; }
+html[data-theme] #export-modal input[type="text"] { background: var(--bg-color); color: var(--text-color); border-color: var(--border-color); }
+
+@media (max-width: 900px) {
+    html[data-theme] .videos-classes-wrapper { width: 160px; }
+    html[data-theme] .right-controls { width: 54px; padding: 6px; overflow-y: auto; }
+    html[data-theme] .timeline { height: 215px; }
+}
+@media (max-width: 600px) {
+    html[data-theme] .annotation-container { height: calc(100dvh - 58px); min-height: 0; flex-wrap: wrap; overflow: auto; }
+    html[data-theme] .videos-classes-wrapper { width: 100%; height: 105px; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--border-color); }
+    html[data-theme] .videos-list { display: flex; flex: 1; overflow-x: auto; padding: 8px; }
+    html[data-theme] .video-item { min-width: 100px; margin: 0 6px 0 0; }
+    html[data-theme] .video-item img { height: 55px; }
+    html[data-theme] .classes-bottom { position: static; height: 100%; min-height: 0; width: 110px; }
+    html[data-theme] .middle-column { height: calc(100% - 155px); width: 100%; }
+    html[data-theme] .timeline { height: 190px; padding: 8px; }
+    html[data-theme] .timeline-controls { flex-wrap: nowrap; overflow-x: auto; width: 100%; }
+    html[data-theme] .right-controls { width: 100%; height: 50px; flex-direction: row; overflow-x: auto; border-left: 0; border-top: 1px solid var(--border-color); }
+    html[data-theme] #tracker-modal > div,
+    html[data-theme] #export-modal > div { padding: 20px; }
+    html[data-theme] #tracker-modal #step1 > div { flex-wrap: wrap; gap: 10px; }
+    html[data-theme] #tracker-modal .method-option { width: 100% !important; }
+    html[data-theme] #export-modal .export-sections { flex-wrap: wrap; gap: 12px !important; }
+}

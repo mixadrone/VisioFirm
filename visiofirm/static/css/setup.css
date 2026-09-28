@@ -421,6 +421,10 @@
     justify-content: center;
 }
 
+.modal.active {
+    display: flex !important;
+}
+
 .modal-content {
     background: var(--surface-color);
     color: var(--text-color);

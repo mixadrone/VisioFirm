@@ -220,4 +220,7 @@ _my_tools/
 _YOLO/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+.playwright/
+.claude/
 output/
+visiofirm_data/

@@ -145,6 +145,17 @@ function renderClassTable() {
         tr.querySelector('.class-name-cell').addEventListener('click', () => filterAndGoToGallery(cls));
         tr.querySelector('.action-view').addEventListener('click', () => filterAndGoToGallery(cls));
 
+        tr.querySelector('.action-rename')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRenameModal(cls);
+        });
+
+        tr.querySelector('.action-delete')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const currentStat = classStats[cls] || { annotations_count: 0, preannotations_count: 0, total_count: 0 };
+            openDeleteConfirmModal(cls, currentStat);
+        });
+
         tr.querySelector('.reorder-up').addEventListener('click', () => moveClassIndex(idx, idx - 1));
         tr.querySelector('.reorder-down').addEventListener('click', () => moveClassIndex(idx, idx + 1));
 
@@ -206,12 +217,22 @@ function initModals() {
     const confirmClose = document.getElementById('confirm-class-action-close-btn');
     const confirmCancel = document.getElementById('confirm-class-action-cancel-btn');
 
-    [renameClose, renameCancel].forEach(b => b?.addEventListener('click', () => { 
-        renameModal.classList.remove('active'); 
-    }));
-    [confirmClose, confirmCancel].forEach(b => b?.addEventListener('click', () => { 
-        confirmModal.classList.remove('active'); 
-    }));
+    const closeRename = () => {
+        if (renameModal) {
+            renameModal.classList.remove('active');
+            renameModal.style.display = 'none';
+        }
+    };
+
+    const closeConfirm = () => {
+        if (confirmModal) {
+            confirmModal.classList.remove('active');
+            confirmModal.style.display = 'none';
+        }
+    };
+
+    [renameClose, renameCancel].forEach(b => b?.addEventListener('click', closeRename));
+    [confirmClose, confirmCancel].forEach(b => b?.addEventListener('click', closeConfirm));
 
     if (renameForm) {
         renameForm.addEventListener('submit', async (e) => {
@@ -221,7 +242,7 @@ function initModals() {
             if (!oldClass || !newClass) return;
 
             if (oldClass === newClass) {
-                renameModal.classList.remove('active');
+                closeRename();
                 return;
             }
             await executeRenameClass(oldClass, newClass);
@@ -233,6 +254,7 @@ function initModals() {
         m?.addEventListener('click', (e) => {
             if (e.target === m) {
                 m.classList.remove('active');
+                m.style.display = 'none';
             }
         });
     });
@@ -248,6 +270,7 @@ function openRenameModal(cls) {
         newInput.value = '';
         newInput.placeholder = `New name for ${cls}`;
         renameModal.classList.add('active');
+        renameModal.style.display = 'flex';
         setTimeout(() => newInput.focus(), 50);
         return;
     }
@@ -298,6 +321,7 @@ function openDeleteConfirmModal(cls, stat) {
 
     submitBtn.onclick = async () => {
         modal.classList.remove('active');
+        modal.style.display = 'none';
         try {
             const response = await fetch(`/dashboard/delete_project_class/${encodeURIComponent(projectName)}`, {
                 method: 'POST',
@@ -317,6 +341,7 @@ function openDeleteConfirmModal(cls, stat) {
     };
 
     modal.classList.add('active');
+    modal.style.display = 'flex';
 }
 
 // ---------------------------------------------------------------------------
@@ -330,7 +355,7 @@ function initEdgeFilter() {
 
     if (moveBtn) {
         moveBtn.addEventListener('click', async () => {
-            const tolerance = parseInt(document.getElementById('edge-filter-tolerance').value || '3', 10);
+            const tolerance = parseInt(document.getElementById('edge-filter-tolerance').value || '0', 10);
             const edgeClass = document.getElementById('edge-filter-class-name').value.trim() || '_edge_review';
 
             moveBtn.disabled = true;

@@ -1,9 +1,8 @@
 import { navigateImage } from './viewManagement.js';
 import { mode, gridEnabled, selectedAnnotation, selectedAnnotations, setSelectedAnnotations, clearSelectedAnnotations, annotations, undoStack, viewport, currentImage, setupType, currentAnnotation, currentImageKey, thumbnailImages, currentImageIndex, setMode, setGridEnabled, setSelectedAnnotation, setSelectedPointIndex, setCurrentAnnotation, setAnnotations, setIsModified, updateTagHighlights } from './globals.js';
-import { clampAnnotationToBounds, clampToImageBounds } from './annotationCore.js';
+import { clampAnnotationToBounds, clampToImageBounds, pushToUndoStack, scaleAnnotation } from './annotationCore.js';
 import { drawImage, resetView } from './annotationDrawing.js';
 import { updateAnnotationSummary, selectImage } from './imageHandling.js';
-import { pushToUndoStack } from './annotationCore.js';
 import { updateToolModeUI, setIsDrawing, setIsDragging, setIsPanning } from './globals.js';
 
 export function clearAllAnnotations() {
@@ -227,22 +226,4 @@ export function initToolControls() {
 
 function updateButtonStates() {
     updateToolModeUI();
-}
-
-function scaleAnnotation(annotation, sourceWidth, sourceHeight, targetWidth, targetHeight) {
-    const scaleX = targetWidth / sourceWidth;
-    const scaleY = targetHeight / sourceHeight;
-    const scaled = JSON.parse(JSON.stringify(annotation));
-    if (scaled.type === 'rect') {
-        scaled.x *= scaleX;
-        scaled.y *= scaleY;
-        scaled.width *= scaleX;
-        scaled.height *= scaleY;
-    } else if (scaled.type === 'polygon') {
-        scaled.points = scaled.points.map(p => ({
-            x: p.x * scaleX,
-            y: p.y * scaleY
-        }));
-    }
-    return scaled;
 }

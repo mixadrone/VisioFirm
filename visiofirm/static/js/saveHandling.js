@@ -2,6 +2,7 @@ import { annotationCache, currentImageKey, annotations, confidenceThreshold, set
 import { saveCacheToStorage } from './storageHandling.js';
 import { updateAnnotationSummary } from './imageHandling.js';
 import { navigateImage } from './viewManagement.js';
+import { polygonArea } from './annotationCore.js';
 
 let currentUpdateAnnotationStatus = null;
 let toastTimeout = null;
@@ -249,12 +250,4 @@ export function initSaveHandling(updateAnnotationStatus) {
             await approveAndMaybeAdvance(updateAnnotationStatus);
         });
     }
-}
-
-function polygonArea(points) {
-    let area = 0;
-    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-        area += (points[j].x + points[i].x) * (points[j].y - points[i].y);
-    }
-    return Math.abs(area / 2);
 }

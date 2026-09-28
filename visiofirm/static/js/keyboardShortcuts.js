@@ -29,7 +29,7 @@ import {
 } from './globals.js';
 import { drawImage, resetView } from './annotationDrawing.js';
 import { updateAnnotationSummary } from './imageHandling.js';
-import { pushToUndoStack, clampToImageBounds, clampAnnotationToBounds } from './annotationCore.js';
+import { pushToUndoStack, clampToImageBounds, clampAnnotationToBounds, scaleAnnotation } from './annotationCore.js';
 
 let shortcutsInitialized = false;
 
@@ -49,10 +49,16 @@ export function initKeyboardShortcuts() {
             return; // Do nothing; let the default key behavior happen.
         }
 
-        if (e.ctrlKey && e.key === 'a') {
+        if (e.ctrlKey && (e.code === 'KeyA' || e.key.toLowerCase() === 'a')) {
             e.preventDefault();
-            setSelectedAnnotation(null);
+            setMode('select');
+            if (annotations && annotations.length > 0) {
+                setSelectedAnnotations([...annotations]);
+            } else {
+                setSelectedAnnotation(null);
+            }
             setSelectedPointIndex(-1);
+            updateTagHighlights();
             drawImage();
         }
         else if (e.ctrlKey && e.key === 'c') {
@@ -299,22 +305,4 @@ export function initKeyboardShortcuts() {
             drawImage();
         }
     });
-}
-
-function scaleAnnotation(annotation, sourceWidth, sourceHeight, targetWidth, targetHeight) {
-    const scaleX = targetWidth / sourceWidth;
-    const scaleY = targetHeight / sourceHeight;
-    const scaled = JSON.parse(JSON.stringify(annotation));
-    if (scaled.type === 'rect' || scaled.type === 'obbox') {
-        scaled.x *= scaleX;
-        scaled.y *= scaleY;
-        scaled.width *= scaleX;
-        scaled.height *= scaleY;
-    } else if (scaled.type === 'polygon') {
-        scaled.points = scaled.points.map(p => ({
-            x: p.x * scaleX,
-            y: p.y * scaleY
-        }));
-    }
-    return scaled;
 }

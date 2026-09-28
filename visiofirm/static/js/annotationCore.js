@@ -251,3 +251,30 @@ export function isAnnotationIntersectingBox(annotation, box) {
 
     return false;
 }
+
+export function scaleAnnotation(annotation, sourceWidth, sourceHeight, targetWidth, targetHeight) {
+    const scaleX = targetWidth / sourceWidth;
+    const scaleY = targetHeight / sourceHeight;
+    const scaled = JSON.parse(JSON.stringify(annotation));
+    if (scaled.type === 'rect' || scaled.type === 'obbox') {
+        scaled.x *= scaleX;
+        scaled.y *= scaleY;
+        scaled.width *= scaleX;
+        scaled.height *= scaleY;
+    } else if (scaled.type === 'polygon' && Array.isArray(scaled.points)) {
+        scaled.points = scaled.points.map(p => ({
+            x: p.x * scaleX,
+            y: p.y * scaleY
+        }));
+    }
+    return scaled;
+}
+
+export function polygonArea(points) {
+    if (!Array.isArray(points) || points.length < 3) return 0;
+    let area = 0;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        area += (points[j].x + points[i].x) * (points[j].y - points[i].y);
+    }
+    return Math.abs(area / 2);
+}

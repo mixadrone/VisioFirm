@@ -984,6 +984,32 @@
         box-shadow: var(--shadow);
     }
 
+    .charts-panel-card {
+        max-width: 1100px;
+    }
+
+    .charts-panel-card .overview-kpi-grid {
+        margin-top: 20px;
+    }
+
+    .charts-panel-card .overview-charts-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .charts-panel-card .overview-chart-box {
+        min-width: 0;
+    }
+
+    @media (max-width: 1100px) {
+        .charts-panel-card .overview-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .charts-panel-card .overview-charts-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .panel-header-title {
         font-size: 1.25rem;
         font-weight: 700;
@@ -2588,7 +2614,7 @@
                     <div class="edge-filter-input-group">
                         <label for="edge-filter-tolerance">Edge Proximity Tolerance:</label>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <input type="number" id="edge-filter-tolerance" value="3" min="0" max="50" style="width: 65px; height: 32px;" class="filter-num-input">
+                            <input type="number" id="edge-filter-tolerance" value="0" min="0" max="50" style="width: 65px; height: 32px;" class="filter-num-input">
                             <span style="font-size: 0.8rem; color: var(--text-muted);">px</span>
                         </div>
                     </div>
@@ -2620,13 +2646,56 @@
             <p style="color: var(--text-light); font-size: 0.9rem;">
                 Visual distribution of annotations and labeling coverage for <strong>{{ project_name }}</strong>.
             </p>
-            <div class="charts-grid-row">
-                <div class="chart-box-container">
-                    <div id="tab-chart-pie" style="width: 100%; height: 350px;"></div>
+            <div class="overview-kpi-grid">
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-images"><i class="fa-regular fa-images"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Total Images</span>
+                        <span class="kpi-value" id="tab-kpi-total-images">—</span>
+                    </div>
                 </div>
-                <div class="chart-box-container">
-                    <div id="tab-chart-bar" style="width: 100%; height: 350px;"></div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-annotated"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Annotated</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-value" id="tab-kpi-annotated-images">—</span>
+                            <span class="kpi-badge" id="tab-kpi-annotated-percent">—</span>
+                        </div>
+                    </div>
                 </div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-objects"><i class="fa-solid fa-shapes"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Total Objects</span>
+                        <span class="kpi-value" id="tab-kpi-total-objects">—</span>
+                    </div>
+                </div>
+                <div class="overview-kpi-card">
+                    <div class="kpi-icon icon-classes"><i class="fa-solid fa-tags"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-label">Classes</span>
+                        <span class="kpi-value" id="tab-kpi-total-classes">—</span>
+                    </div>
+                </div>
+            </div>
+            <div class="overview-charts-grid">
+                <div class="overview-chart-box">
+                    <div class="chart-header"><i class="fa-solid fa-chart-pie"></i> Annotation Progress</div>
+                    <div id="tab-chart-pie" class="dark-chart-container"></div>
+                </div>
+                <div class="overview-chart-box">
+                    <div class="chart-header"><i class="fa-solid fa-chart-column"></i> Class Distribution</div>
+                    <div id="tab-chart-bar" class="dark-chart-container"></div>
+                </div>
+            </div>
+            <div id="tab-annotations-per-image-container" class="overview-chart-box" style="display: none; margin-top: 14px;">
+                <div class="chart-header"><i class="fa-solid fa-chart-area"></i> Annotations per Image</div>
+                <div id="tab-annotations-per-image" class="dark-chart-container"></div>
+            </div>
+            <div class="overview-classes-section">
+                <div class="section-title"><i class="fa-solid fa-tag"></i> Classes Breakdown</div>
+                <div id="tab-classes-list" class="overview-classes-tags"></div>
             </div>
         </div>
     </div>
@@ -3191,8 +3260,34 @@
                     <div class="toolbar-subgroup">
                         <button class="control-btn" id="rect-mode" title="Bounding Box (R)"><i class="fa-solid fa-vector-square"></i> <span>Box</span></button>
                         <button class="control-btn" id="polygon-mode" title="Polygon (P)"><i class="fa-solid fa-draw-polygon"></i> <span>Polygon</span></button>
-                        <button class="control-btn" id="magic-mode" title="One-Click Annotation (M)"><i class="fa-solid fa-wand-magic-sparkles"></i> <span>Magic</span></button>
-                        <button class="control-btn icon-only" id="select-mode" title="Select / Move Labels (V)" aria-label="Select Labels"><i class="fa-solid fa-arrow-pointer"></i></button>
+                        <button class="control-btn" id="magic-mode" title="One-Click Annotation"><i class="fa-solid fa-wand-magic-sparkles"></i> <span>Magic</span></button>
+                        <div class="magic-model-picker" id="magic-model-picker">
+                            <button type="button" class="control-btn magic-model-trigger" id="magic-model-trigger" aria-haspopup="menu" aria-controls="magic-model-menu" aria-expanded="false" title="Choose Magic model">
+                                <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+                                <span>Models</span>
+                                <i class="fa-solid fa-chevron-down magic-model-chevron" aria-hidden="true"></i>
+                            </button>
+                            <div class="magic-model-menu" id="magic-model-menu" role="menu" aria-label="Magic annotation models" hidden>
+                                <div class="magic-model-menu-heading">One-Click Annotation</div>
+                                <button type="button" class="magic-model-option" role="menuitemradio" aria-checked="true" data-model="slimsam">
+                                    <span class="magic-model-option-icon"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>
+                                    <span class="magic-model-option-copy"><strong>SlimSAM</strong><small>Fast · runs in your browser</small></span>
+                                    <i class="fa-solid fa-check magic-model-check" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="magic-model-option" role="menuitemradio" aria-checked="false" data-model="sam2.1_t">
+                                    <span class="magic-model-option-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span>
+                                    <span class="magic-model-option-copy"><strong>SAM 2.1 Tiny</strong><small>Quick · server processing</small></span>
+                                    <i class="fa-solid fa-check magic-model-check" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="magic-model-option" role="menuitemradio" aria-checked="false" data-model="sam2.1_s">
+                                    <span class="magic-model-option-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span>
+                                    <span class="magic-model-option-copy"><strong>SAM 2.1 Small</strong><small>Detailed · server processing</small></span>
+                                    <i class="fa-solid fa-check magic-model-check" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <span id="magic-model-status" role="status" aria-live="polite" hidden></span>
+                        <button class="control-btn icon-only" id="select-mode" title="Select / Move Tool (V or Ctrl+A)" aria-label="Select Labels"><i class="fa-solid fa-arrow-pointer"></i></button>
                         <button class="control-btn icon-only" id="pan-mode" title="Pan Image (H or Space)" aria-label="Pan Image" aria-pressed="false"><i class="fa-solid fa-hand"></i></button>
                     </div>
 
@@ -3549,6 +3644,7 @@
                 <button type="submit" class="create-btn">Apply</button>
             </form>
         </div>
+    </div>
     <div class="modal" id="add-classes-modal">
         <div class="modal-content">
             <button class="close-btn add-classes-close-btn">&times;</button>
@@ -3633,7 +3729,7 @@
         }
     </script>
     <script src="/static/js/jslib/plotly-2.35.2.min.js"></script>
-    <script type="module" src="/static/js/main.js?v=20260928-v12"></script>
+    <script type="module" src="/static/js/main.js?v=20260928-v14"></script>
 
     <script>
         (function() {
@@ -3672,6 +3768,9 @@
                                 try {
                                     window.Plotly.Plots.resize('tab-chart-pie');
                                     window.Plotly.Plots.resize('tab-chart-bar');
+                                    if (document.getElementById('tab-annotations-per-image-container').style.display !== 'none') {
+                                        window.Plotly.Plots.resize('tab-annotations-per-image');
+                                    }
                                 } catch (e) {}
                             }, 50);
                         }
@@ -3874,57 +3973,105 @@
             async function loadProjectCharts() {
                 try {
                     const resp = await fetch(`/dashboard/get_project_overview/${encodeURIComponent(projectName)}`);
+                    if (!resp.ok) throw new Error(`Overview request failed: ${resp.status}`);
                     const data = await resp.json();
-                    if (data.error) return;
+                    if (data.error) throw new Error(data.error);
+
+                    const formatCount = value => (value || 0).toLocaleString();
+                    document.getElementById('tab-kpi-total-images').textContent = formatCount(data.total_images);
+                    document.getElementById('tab-kpi-annotated-images').textContent = formatCount(data.annotated_images);
+                    document.getElementById('tab-kpi-annotated-percent').textContent = `${data.annotated_percentage || 0}%`;
+                    document.getElementById('tab-kpi-total-objects').textContent = formatCount(data.total_annotations);
+                    document.getElementById('tab-kpi-total-classes').textContent = formatCount(data.total_classes);
+
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    const axisColor = isDark ? '#94a3b8' : '#475569';
+                    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.1)';
+                    const plotlyConfig = { responsive: true, displayModeBar: false };
+                    const classEntries = Object.entries(data.class_distribution || {}).sort((a, b) => b[1] - a[1]);
+
+                    if (window.Plotly) {
+                        if (data.total_images === 0) {
+                            document.getElementById('tab-chart-pie').innerHTML = '<div class="empty-chart-text">No images in this project</div>';
+                        } else {
+                            window.Plotly.newPlot('tab-chart-pie', [{
+                                values: [data.annotated_images, data.non_annotated_images],
+                                labels: ['Annotated', 'Non-annotated'],
+                                type: 'pie',
+                                hole: 0.62,
+                                marker: { colors: ['#10b981', '#f59e0b'] },
+                                textinfo: 'percent',
+                                textfont: { color: isDark ? '#ffffff' : '#1e293b', size: 13, family: 'Inter, sans-serif' },
+                                hoverinfo: 'label+value+percent'
+                            }], {
+                                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', showlegend: true,
+                                legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: -0.12,
+                                    font: { color: axisColor, size: 12, family: 'Inter, sans-serif' } },
+                                margin: { l: 20, r: 20, t: 20, b: 35 }, height: 280
+                            }, plotlyConfig);
+                        }
+
+                        if (classEntries.length === 0) {
+                            document.getElementById('tab-chart-bar').innerHTML = '<div class="empty-chart-text">No annotated classes yet</div>';
+                        } else {
+                            window.Plotly.newPlot('tab-chart-bar', [{
+                                x: classEntries.map(([name]) => name),
+                                y: classEntries.map(([, count]) => count),
+                                type: 'bar',
+                                marker: { color: '#6366f1', opacity: 0.88, line: { color: '#818cf8', width: 1.5 } },
+                                hoverinfo: 'x+y'
+                            }], {
+                                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                                xaxis: { color: axisColor, gridcolor: gridColor, tickfont: { color: axisColor, size: 11 } },
+                                yaxis: { color: axisColor, gridcolor: gridColor,
+                                    tickfont: { color: axisColor, size: 11, family: 'JetBrains Mono, monospace' } },
+                                margin: { l: 40, r: 20, t: 20, b: 50 }, height: 280
+                            }, plotlyConfig);
+                        }
+
+                        const histogramContainer = document.getElementById('tab-annotations-per-image-container');
+                        if (data.annotations_per_image?.length) {
+                            histogramContainer.style.display = 'flex';
+                            window.Plotly.newPlot('tab-annotations-per-image', [{
+                                x: data.annotations_per_image,
+                                type: 'histogram',
+                                marker: { color: '#38bdf8', opacity: 0.8 }
+                            }], {
+                                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                                xaxis: { title: { text: 'Annotations per Image', font: { color: axisColor, size: 11 } },
+                                    color: axisColor, gridcolor: gridColor, tickfont: { color: axisColor, size: 11 } },
+                                yaxis: { title: { text: 'Images', font: { color: axisColor, size: 11 } },
+                                    color: axisColor, gridcolor: gridColor, tickfont: { color: axisColor, size: 11 } },
+                                margin: { l: 45, r: 20, t: 20, b: 40 }, height: 220
+                            }, plotlyConfig);
+                        } else {
+                            histogramContainer.style.display = 'none';
+                        }
+                    }
+
+                    const classesList = document.getElementById('tab-classes-list');
+                    classesList.replaceChildren();
+                    if (classEntries.length === 0) {
+                        const empty = document.createElement('span');
+                        empty.className = 'empty-classes-text';
+                        empty.textContent = 'No annotated classes in this project';
+                        classesList.appendChild(empty);
+                    } else {
+                        classEntries.forEach(([name, count]) => {
+                            const chip = document.createElement('div');
+                            chip.className = 'overview-class-chip';
+                            const nameEl = document.createElement('span');
+                            nameEl.className = 'chip-name';
+                            nameEl.textContent = name;
+                            const countEl = document.createElement('span');
+                            countEl.className = 'chip-count';
+                            countEl.textContent = count.toLocaleString();
+                            chip.append(nameEl, countEl);
+                            classesList.appendChild(chip);
+                        });
+                    }
 
                     chartsLoaded = true;
-
-                    // 1. Image Status Pie Chart
-                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                    const textColor = isDark ? '#f1f1f5' : '#1a1a24';
-                    const paperBg = 'transparent';
-
-                    const pieData = [{
-                        values: [data.annotated_images, data.non_annotated_images],
-                        labels: ['Annotated', 'Unannotated'],
-                        type: 'pie',
-                        marker: { colors: ['#10b981', '#f59e0b'] },
-                        hole: 0.4
-                    }];
-                    const pieLayout = {
-                        title: { text: 'Annotation Progress', font: { color: textColor, size: 14 } },
-                        paper_bgcolor: paperBg,
-                        plot_bgcolor: paperBg,
-                        font: { color: textColor },
-                        margin: { t: 40, b: 30, l: 30, r: 30 },
-                        showlegend: true
-                    };
-                    if (window.Plotly) {
-                        window.Plotly.newPlot('tab-chart-pie', pieData, pieLayout, { responsive: true, displayModeBar: false });
-                    }
-
-                    // 2. Class Distribution Bar Chart
-                    const classes = Object.keys(data.class_distribution || {});
-                    const counts = Object.values(data.class_distribution || {});
-
-                    const barData = [{
-                        x: classes.length > 0 ? classes : ['No annotations'],
-                        y: counts.length > 0 ? counts : [0],
-                        type: 'bar',
-                        marker: { color: '#6366f1' }
-                    }];
-                    const barLayout = {
-                        title: { text: 'Class Distribution', font: { color: textColor, size: 14 } },
-                        paper_bgcolor: paperBg,
-                        plot_bgcolor: paperBg,
-                        font: { color: textColor },
-                        margin: { t: 40, b: 40, l: 40, r: 20 },
-                        xaxis: { gridcolor: isDark ? '#272730' : '#e2e4ea' },
-                        yaxis: { gridcolor: isDark ? '#272730' : '#e2e4ea' }
-                    };
-                    if (window.Plotly) {
-                        window.Plotly.newPlot('tab-chart-bar', barData, barLayout, { responsive: true, displayModeBar: false });
-                    }
 
                 } catch (err) {
                     console.error('Failed to load project analytics:', err);

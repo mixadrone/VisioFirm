@@ -24,6 +24,12 @@ from typing import Optional
 import tempfile
 from datetime import datetime, timezone
 from contextlib import closing
+from pathlib import Path
+import math
+from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
+
+from visiofirm.magic_segment import MAGIC_MODELS, segment_image
 
 router = APIRouter(prefix="/annotation")
 module_dir = os.path.dirname(__file__)
@@ -37,6 +43,57 @@ preannotation_progress = {}
 blind_trust_status = {}
 blind_trust_progress = {}
 preannotation_instances = {}
+
+
+class MagicSegmentRequest(BaseModel):
+    project_name: str
+    image_id: int
+    model: str
+    x: float
+    y: float
+
+
+@router.post('/magic_segment')
+async def magic_segment(
+    payload: MagicSegmentRequest,
+    current_user: User = Depends(get_current_user_from_cookie),
+):
+    if payload.model not in MAGIC_MODELS or not math.isfinite(payload.x) or not math.isfinite(payload.y):
+        raise HTTPException(status_code=400, detail="Invalid model or point")
+
+    projects_root = Path(PROJECTS_FOLDER).resolve()
+    project_path = (projects_root / payload.project_name).resolve()
+    if project_path.parent != projects_root or project_path.name != payload.project_name or not project_path.is_dir():
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = Project(payload.project_name, "", "", str(project_path))
+    with closing(sqlite3.connect(project.db_path)) as conn:
+        row = conn.execute(
+            'SELECT absolute_path, width, height FROM Images WHERE image_id = ?',
+            (payload.image_id,),
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    image_path = Path(row[0]).resolve()
+    if not image_path.is_relative_to((project_path / 'images').resolve()) or not image_path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+    if not 0 <= payload.x < row[1] or not 0 <= payload.y < row[2]:
+        raise HTTPException(status_code=400, detail="Point is outside the image")
+
+    setup_type = project.get_setup_type()
+    if setup_type not in ('Bounding Box', 'Oriented Bounding Box', 'Segmentation'):
+        raise HTTPException(status_code=400, detail="Magic is unavailable for this project")
+    try:
+        annotation = await run_in_threadpool(
+            segment_image, image_path, (payload.x, payload.y), payload.model, setup_type
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Magic segmentation failed for image %s", payload.image_id)
+        raise HTTPException(status_code=500, detail="Magic segmentation failed") from exc
+    return {"success": True, "annotation": annotation}
 
 @router.get('/check_gpu')
 async def check_gpu(request: Request): 

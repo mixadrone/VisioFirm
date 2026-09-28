@@ -1,0 +1,225 @@
+/* Shared surfaces and controls for both application themes. */
+:root {
+    --vf-overlay: rgba(5, 6, 15, .72);
+    --vf-shadow: 0 24px 72px rgba(0, 0, 0, .38);
+    --vf-focus: rgba(99, 102, 241, .35);
+}
+
+html[data-theme="light"] {
+    --vf-overlay: rgba(18, 22, 39, .46);
+    --vf-shadow: 0 24px 72px rgba(35, 39, 72, .16);
+}
+
+html[data-theme] body,
+html[data-theme] button,
+html[data-theme] input,
+html[data-theme] select,
+html[data-theme] textarea {
+    font-family: Inter, sans-serif;
+}
+
+html[data-theme] :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+html[data-theme] :where(.modal, .modal-overlay, .flash-modal) {
+    backdrop-filter: blur(5px);
+}
+
+html[data-theme] .modal {
+    background: var(--vf-overlay);
+    padding: 16px;
+    overflow-y: auto;
+}
+
+html[data-theme] .modal-content,
+html[data-theme] .danger-modal .modal-content,
+html[data-theme] .modal .modal-content,
+html[data-theme] .vf-dialog {
+    box-sizing: border-box;
+    color: var(--text-color);
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--vf-shadow);
+    width: min(100%, 640px);
+    max-height: min(88vh, 900px);
+    overflow-y: auto;
+    margin: auto;
+    padding: clamp(20px, 3vw, 28px);
+}
+
+html[data-theme] :where(.modal-content, .vf-dialog) :where(h1, h2, h3) {
+    color: var(--text-color);
+    letter-spacing: -.025em;
+}
+
+html[data-theme] :where(.modal-content, .vf-dialog) :where(p, label, small) {
+    color: var(--text-light);
+}
+
+html[data-theme] :where(.modal-content, .vf-dialog) :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+html[data-theme] .vf-reset-page input {
+    box-sizing: border-box;
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    min-height: 40px;
+}
+
+html[data-theme] :where(.modal-content, .vf-dialog) :where(input, select, textarea):focus,
+html[data-theme] .vf-reset-page input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--vf-focus);
+    outline: none;
+}
+
+html[data-theme] :where(.modal-content, .vf-dialog) button,
+html[data-theme] .vf-reset-page button {
+    border-radius: 9px;
+    min-height: 38px;
+    font-weight: 600;
+}
+
+html[data-theme] .danger-modal .modal-content {
+    border-top: 3px solid #ef4444;
+}
+
+html[data-theme] #save-modal .modal-content {
+    background: var(--surface-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+html[data-theme] .vf-dialog {
+    width: min(960px, calc(100vw - 32px));
+    max-height: min(85vh, 900px);
+    position: fixed;
+}
+
+html[data-theme] .vf-dialog::backdrop {
+    background: var(--vf-overlay);
+    backdrop-filter: blur(5px);
+}
+
+.vf-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.vf-reset-page {
+    min-height: min(680px, calc(100vh - 130px));
+    display: grid;
+    place-items: center;
+    padding: 32px 16px;
+}
+
+.vf-reset-page .auth-card {
+    width: min(100%, 440px);
+    margin: 0;
+    background: var(--surface-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--vf-shadow);
+    padding: 32px;
+}
+
+.vf-auth-heading { text-align: center; margin-bottom: 28px; }
+.vf-auth-heading h1 { margin: 12px 0 8px; font-size: 1.5rem; color: var(--text-color); }
+.vf-auth-heading p, .vf-auth-footer { color: var(--text-light); font-size: .88rem; }
+.vf-auth-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    color: var(--primary-color);
+    background: rgba(99, 102, 241, .14);
+}
+.vf-reset-page .form-group { margin-bottom: 18px; }
+.vf-reset-page .form-group label { display: block; color: var(--text-color); font-size: .82rem; font-weight: 600; margin-bottom: 7px; }
+.vf-reset-page .form-control { width: 100%; padding: 10px 12px; }
+.vf-reset-page .vf-auth-submit { width: 100%; margin-top: 8px; background: var(--primary-color); color: #fff; border: 0; }
+.vf-auth-footer { text-align: center; margin: 22px 0 0; }
+.vf-auth-footer a { color: var(--primary-color); font-weight: 600; }
+
+html[data-theme] .class-card {
+    background: var(--surface-hover);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+}
+html[data-theme] .class-card h5 { color: var(--text-color); }
+html[data-theme] #ai-preannotator-modal .mode-btn,
+html[data-theme] #ai-preannotator-modal :is(select, input[type="number"], input[type="text"]),
+html[data-theme] #custom-model-select {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+html[data-theme] #ai-preannotator-modal .mode-btn.active,
+html[data-theme] #ai-preannotator-modal .mode-btn:hover,
+html[data-theme] #ai-preannotator-modal .create-btn {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+    box-shadow: none;
+}
+html[data-theme] #ai-preannotator-modal p { color: var(--text-light); }
+html[data-theme] #custom-model-select option { background: var(--surface-color); color: var(--text-color); }
+
+html[data-theme] :is(#import-images-modal, #import-modal) .file-list {
+    background: var(--bg-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+    border-radius: 9px;
+    padding: 6px;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .file-list > div {
+    color: var(--text-color);
+    overflow-wrap: anywhere;
+    padding: 5px 8px;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .file-list > div + div {
+    border-top: 1px solid var(--border-color);
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .progress-container {
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    padding: 10px 12px;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .file-progress {
+    color: var(--text-color);
+    overflow-wrap: anywhere;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .progress-bar {
+    height: 8px;
+    margin-top: 8px;
+    background: var(--border-color);
+    border-radius: 999px;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .progress {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: inherit;
+}
+html[data-theme] :is(#import-images-modal, #import-modal) .upload-success {
+    color: var(--text-color);
+    font-size: .85rem;
+}
+
+@media (max-width: 600px) {
+    html[data-theme] .modal { align-items: flex-start; padding: 12px; }
+    html[data-theme] .modal-content,
+    html[data-theme] .modal .modal-content { max-height: calc(100dvh - 24px); padding: 20px; }
+    .vf-reset-page { padding: 20px 12px; }
+    .vf-reset-page .auth-card { padding: 24px 20px; }
+}

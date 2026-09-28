@@ -1517,7 +1517,7 @@
         });
     });
 </script>
-<dialog id="duplicates-dialog" aria-labelledby="duplicates-title" style="width:min(960px,90vw);max-height:85vh;overflow:auto;border:1px solid #888;border-radius:12px;padding:24px;">
+<dialog id="duplicates-dialog" class="vf-dialog" aria-labelledby="duplicates-title">
     <h2 id="duplicates-title">Clean duplicates</h2>
     <p>Group images by source filename, ignoring the final _xNUMBER_yNUMBER tile coordinates and file extension. Different tiles from one source are grouped together even when their contents differ. Keep one selected file per included group; skip groups you want to retain.</p>
     <p id="duplicates-status" role="status"></p>
@@ -1526,7 +1526,7 @@
     <div id="duplicates-result" role="status" aria-live="polite" aria-atomic="true" hidden></div>
     <p id="duplicates-summary"></p>
     <label id="duplicates-loss-label" hidden><input type="checkbox" id="duplicates-loss"> I confirm deletion of manual annotations or reviewed status on the selected copies.</label>
-    <div style="display:flex;gap:12px;margin-top:20px;">
+    <div class="vf-dialog-actions">
         <button type="button" id="duplicates-clean" disabled>Remove selected duplicates</button>
         <button type="button" id="duplicates-close">Close</button>
     </div>

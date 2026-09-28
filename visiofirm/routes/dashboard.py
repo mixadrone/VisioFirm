@@ -424,16 +424,16 @@ async def run_project_edge_filter(request: Request, project_name: str, current_u
 
     data = await request.json()
     mode = data.get('mode', 'move')
-    tolerance = int(data.get('tolerance', 3))
+    tolerance = int(data.get('tolerance', 0))
     edge_class = (data.get('class_name') or '_edge_review').strip()
 
     try:
         def touches_edge(x, y, w, h, img_w, img_h, tol):
             return (
-                (x - w / 2) <= tol or
-                (y - h / 2) <= tol or
-                (x + w / 2) >= img_w - tol or
-                (y + h / 2) >= img_h - tol
+                x <= tol or
+                y <= tol or
+                x + w >= img_w - tol or
+                y + h >= img_h - tol
             )
 
         with closing(sqlite3.connect(db_path)) as conn, conn:

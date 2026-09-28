@@ -21,7 +21,7 @@ const DEFAULT_STYLE_CONFIG = {
 
 let currentStyleConfig = structuredCloneSafe(DEFAULT_STYLE_CONFIG);
 
-function structuredCloneSafe(value) {
+export function structuredCloneSafe(value) {
     return typeof structuredClone === 'function'
         ? structuredClone(value)
         : JSON.parse(JSON.stringify(value));
@@ -65,7 +65,7 @@ function normalizeClassStyle(style, fallbackColor) {
     };
 }
 
-function hexToRgba(hex, opacity) {
+export function hexToRgba(hex, opacity) {
     const safeHex = normalizeHex(hex);
     const r = parseInt(safeHex.slice(1, 3), 16);
     const g = parseInt(safeHex.slice(3, 5), 16);
