@@ -72,13 +72,44 @@ export function initializeImageListControls({ sortImages, filterImages, setCusto
                 onChange();
             });
         });
-        menu.querySelectorAll('.filter-num-input').forEach(inp => {
-            inp.addEventListener('keydown', event => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    const applyBtn = inp.closest('.filter-range-block')?.querySelector('.filter-range-apply-btn');
-                    if (applyBtn) applyBtn.click();
+        // Search filter within classes
+        menu.querySelectorAll('.filter-classes-search-input').forEach(searchInput => {
+            searchInput.addEventListener('click', event => event.stopPropagation());
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.trim().toLowerCase();
+                const list = searchInput.closest('.dropdown-content')?.querySelector('.filter-classes-list');
+                if (list) {
+                    list.querySelectorAll('.filter-class-item').forEach(item => {
+                        const name = item.querySelector('.filter-class-name')?.textContent?.toLowerCase() || '';
+                        item.style.display = (!term || name.includes(term)) ? 'flex' : 'none';
+                    });
                 }
+            });
+        });
+
+        // Class checkboxes & clear handlers
+        menu.querySelectorAll('.filter-class-checkbox').forEach(cb => {
+            cb.addEventListener('change', event => {
+                event.stopPropagation();
+                if (window.VisioFirmFilterActions?.toggleClassFilter) {
+                    window.VisioFirmFilterActions.toggleClassFilter(cb.value);
+                }
+                onChange();
+            });
+        });
+        menu.querySelectorAll('.filter-class-item').forEach(item => {
+            item.addEventListener('click', event => {
+                event.stopPropagation();
+            });
+        });
+        menu.querySelectorAll('.filter-class-clear-btn').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (window.VisioFirmFilterActions?.clearClassFilters) {
+                    window.VisioFirmFilterActions.clearClassFilters();
+                }
+                onChange();
             });
         });
     });

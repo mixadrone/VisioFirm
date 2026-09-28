@@ -185,9 +185,9 @@ class Project:
             return conn.execute(f"SELECT i.absolute_path, {ANNOTATED_SQL} AS is_annotated FROM Images i").fetchall()
 
     def get_classes(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT class_name FROM Classes')
+            cursor.execute('SELECT class_name FROM Classes ORDER BY rowid')
             classes = [row[0] for row in cursor.fetchall()]
             logger.info(f"Retrieved {len(classes)} classes for project {self.name}: {classes}")
             return classes

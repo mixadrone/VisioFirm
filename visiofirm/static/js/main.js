@@ -17,7 +17,7 @@ import {
     isAnnotationLabelHidden,
     setSelectedAnnotation
 } from './globals.js';
-import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, filterImages, filterByClass, refreshImageList, toggleView, setCustomFilterRange } from './viewManagement.js';
+import { initializeGridView, switchToAnnotationView, switchToGridView, sortImages, filterImages, filterByClass, toggleClassFilter, clearClassFilters, refreshImageList, toggleView, setCustomFilterRange } from './viewManagement.js';
 import { initToolControls } from './toolControls.js';
 import { initAnnotationInteraction } from './annotationInteraction.js';
 import { initKeyboardShortcuts } from './keyboardShortcuts.js';
@@ -31,6 +31,7 @@ import { initImportModal } from '/static/js/importHandler.js';
 import { showLoadingOverlay, hideLoadingOverlay } from '/static/js/spinnerLoader.js';
 import { initializeSegmentor } from './sam.js';
 import { initAnnotationStyleSettings } from './annotationStyleSettings.js';
+import { initClassManagement } from './classManagement.js?v=20260928-v12';
 
 function hideLoadingAnimation() {
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -72,7 +73,25 @@ export function updateAnnotationStatus(imagePath, isAnnotated, isPreannotated) {
         gridCard.dataset.preannotated = isPreannotated ? 'true' : 'false';
         gridCard.dataset.annotationCount = annoCount;
         gridCard.dataset.classCount = classCount;
+        const currentClasses = Array.from(new Set(annotations.map(a => a.label).filter(Boolean)));
+        gridCard.dataset.classes = currentClasses.join(' ');
         updateBadge(gridCard.querySelector('.card-image-container'), annoCount);
+
+        let dotsContainer = gridCard.querySelector('.card-class-dots');
+        if (dotsContainer) {
+            dotsContainer.innerHTML = '';
+            currentClasses.forEach(cls => {
+                const dot = document.createElement('span');
+                dot.className = 'card-class-dot';
+                dot.dataset.class = cls;
+                dot.title = cls;
+                if (classColors[cls]) {
+                    dot.style.backgroundColor = classColors[cls];
+                }
+                dotsContainer.appendChild(dot);
+            });
+        }
+
         if (statusSpan) {
             statusSpan.textContent = isAnnotated ? 'Annotated' : (isPreannotated ? 'Pre-Annotated' : 'Not Annotated');
             statusSpan.dataset.annotated = isAnnotated ? 'true' : 'false';
@@ -300,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
     generateClassColors(classes);
     initAnnotationStyleSettings(config);
     generateClassTags();
+    initClassManagement(config);
     initializeGridView();
     hideLoadingAnimation();
 
@@ -374,15 +394,57 @@ document.addEventListener('DOMContentLoaded', function () {
         viewportBtnTop.addEventListener('click', () => switchToAnnotationView());
     }
 
-    // Class filter dropdown in toolbar
-    const classFilter = document.getElementById('class-filter');
-    if (classFilter) {
-        classFilter.addEventListener('change', (e) => {
-            filterByClass(e.target.value);
+    // Expose filter actions globally for imageListControls
+    window.VisioFirmFilterActions = {
+        toggleClassFilter: (cls) => {
+            toggleClassFilter(cls);
             updateBulkActionsState();
+        },
+        clearClassFilters: () => {
+            clearClassFilters();
+            updateBulkActionsState();
+        }
+    };
+
+    // Colorize card class dots & filter dropdown class dots and attach click-to-filter
+    function applyCardClassDotColors() {
+        document.querySelectorAll('.card-class-dot, .filter-class-dot').forEach(dot => {
+            const cls = dot.dataset.class;
+            if (cls && classColors[cls]) {
+                dot.style.backgroundColor = classColors[cls];
+            }
+        });
+    }
+    applyCardClassDotColors();
+
+    const gridThumbnails = document.getElementById('grid-thumbnails');
+    if (gridThumbnails) {
+        gridThumbnails.addEventListener('click', (e) => {
+            const dot = e.target.closest('.card-class-dot');
+            if (!dot) return;
+            e.stopPropagation();
+            const cls = dot.dataset.class;
+            if (cls) {
+                filterByClass(cls);
+                updateBulkActionsState();
+            }
         });
     }
     document.getElementById('viewport-btn-annotation').addEventListener('click', switchToGridView);
+
+    // Studio Settings button in toolbar: switch to project view and open Settings tab
+    const studioSettingsBtn = document.getElementById('studio-settings-btn');
+    if (studioSettingsBtn) {
+        studioSettingsBtn.addEventListener('click', () => {
+            switchToGridView();
+            const tabBtnSettings = document.getElementById('tab-btn-settings');
+            if (tabBtnSettings) {
+                tabBtnSettings.click();
+            } else {
+                document.dispatchEvent(new CustomEvent('project-tab-change', { detail: 'settings' }));
+            }
+        });
+    }
 
     initializeImageListControls({ sortImages, filterImages, setCustomFilterRange, onChange: updateBulkActionsState });
 

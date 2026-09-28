@@ -1,7 +1,13 @@
 import { drawImage, fitToLabels, resetView } from './annotationDrawing.js';
-import { isFitToLabelsEnabled, setIsFitToLabelsEnabled } from './globals.js';
-import { isAutoSaveEnabled, setIsAutoSaveEnabled } from './globals.js';
-import { isAdvanceAfterSaveEnabled, setIsAdvanceAfterSaveEnabled } from './globals.js';
+import {
+    isFitToLabelsEnabled, setIsFitToLabelsEnabled,
+    isAutoSaveEnabled, setIsAutoSaveEnabled,
+    isAdvanceAfterSaveEnabled, setIsAdvanceAfterSaveEnabled,
+    isCardShowDots, setIsCardShowDots,
+    isCardShowFilename, setIsCardShowFilename,
+    isCardShowDate, setIsCardShowDate,
+    isCardShowStatus, setIsCardShowStatus
+} from './globals.js';
 import {
     getCurrentStyleConfig,
     getDefaultStyleConfig,
@@ -22,6 +28,30 @@ function hexToRgba(hex, opacity) {
     const g = parseInt(safeHex.slice(3, 5), 16);
     const b = parseInt(safeHex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+export function applyCardDisplaySettings() {
+    // 1. Class dots
+    document.querySelectorAll('.card-class-dots').forEach(el => {
+        el.style.display = isCardShowDots ? 'flex' : 'none';
+    });
+
+    // 2. Filename vs ID
+    document.querySelectorAll('#grid-thumbnails .image-id').forEach(el => {
+        const fullFilename = el.dataset.filename || el.getAttribute('title') || '';
+        const idNum = el.dataset.idNum || '';
+        el.textContent = isCardShowFilename ? fullFilename : (idNum || fullFilename);
+    });
+
+    // 3. File date
+    document.querySelectorAll('.card-info .image-date').forEach(el => {
+        el.style.display = isCardShowDate ? 'inline-block' : 'none';
+    });
+
+    // 4. Status text badge
+    document.querySelectorAll('.card-info .image-status').forEach(el => {
+        el.style.display = isCardShowStatus ? 'inline-flex' : 'none';
+    });
 }
 
 export function initAnnotationStyleSettings(config) {
@@ -50,6 +80,12 @@ export function initAnnotationStyleSettings(config) {
     const fitToLabelsSwitch = document.getElementById('setting-fit-to-labels');
     const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
 
+    // Gallery cards switches
+    const cardDotsSwitch = document.getElementById('setting-card-dots');
+    const cardFilenameSwitch = document.getElementById('setting-card-filename');
+    const cardDateSwitch = document.getElementById('setting-card-date');
+    const cardStatusSwitch = document.getElementById('setting-card-status');
+
     if (fitToLabelsSwitch) {
         fitToLabelsSwitch.checked = isFitToLabelsEnabled;
         fitToLabelsSwitch.addEventListener('change', event => {
@@ -72,6 +108,41 @@ export function initAnnotationStyleSettings(config) {
             setIsAutoSaveEnabled(e.target.checked);
         });
     }
+
+    if (cardDotsSwitch) {
+        cardDotsSwitch.checked = isCardShowDots;
+        cardDotsSwitch.addEventListener('change', e => {
+            setIsCardShowDots(e.target.checked);
+            applyCardDisplaySettings();
+        });
+    }
+
+    if (cardFilenameSwitch) {
+        cardFilenameSwitch.checked = isCardShowFilename;
+        cardFilenameSwitch.addEventListener('change', e => {
+            setIsCardShowFilename(e.target.checked);
+            applyCardDisplaySettings();
+        });
+    }
+
+    if (cardDateSwitch) {
+        cardDateSwitch.checked = isCardShowDate;
+        cardDateSwitch.addEventListener('change', e => {
+            setIsCardShowDate(e.target.checked);
+            applyCardDisplaySettings();
+        });
+    }
+
+    if (cardStatusSwitch) {
+        cardStatusSwitch.checked = isCardShowStatus;
+        cardStatusSwitch.addEventListener('change', e => {
+            setIsCardShowStatus(e.target.checked);
+            applyCardDisplaySettings();
+        });
+    }
+
+    // Apply card settings initially on load
+    applyCardDisplaySettings();
 
     const tabButtons = Array.from(document.querySelectorAll('.style-tab-btn'));
     const tabPanels = Array.from(document.querySelectorAll('.style-tab-panel'));

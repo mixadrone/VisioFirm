@@ -63,7 +63,7 @@ const sortTypes = ['name-asc', 'name-desc', 'status-asc', 'status-desc', 'status
 const filterTypes = ['all', 'annotated', 'preannotated', 'unannotated', 'anno-0', 'anno-1-5', 'anno-gt5', 'class-1', 'class-multi', 'custom-range'];
 let activeSort = 'name-asc';
 let activeFilter = 'all';
-let activeClassFilter = 'all';
+let selectedClasses = new Set();
 export let customRange = {
     annoMin: null,
     annoMax: null,
@@ -90,10 +90,18 @@ export function initializeImageList() {
         if (sortTypes.includes(saved.sort)) activeSort = saved.sort;
         if (filterTypes.includes(saved.filter)) activeFilter = saved.filter;
         if (saved.customRange) customRange = { ...customRange, ...saved.customRange };
+        if (Array.isArray(saved.selectedClasses)) selectedClasses = new Set(saved.selectedClasses);
     } catch (error) {
         console.warn('Cannot restore image list preferences', error);
     }
+    syncClassCheckboxUI();
     refreshImageList();
+}
+
+function syncClassCheckboxUI() {
+    document.querySelectorAll('.filter-class-checkbox').forEach(cb => {
+        cb.checked = selectedClasses.has(cb.value);
+    });
 }
 
 export function refreshImageList() {
@@ -144,7 +152,6 @@ export function refreshImageList() {
         const orderChanged = rows.some((row, index) => row !== original[index]);
         rows.forEach(row => {
             const annoCount = parseInt(row.dataset.annotationCount || '0', 10);
-            const classCount = parseInt(row.dataset.classCount || '0', 10);
             let matchesFilter = true;
             if (activeFilter === 'all') {
                 matchesFilter = true;
@@ -160,18 +167,15 @@ export function refreshImageList() {
                 matchesFilter = annoCount >= 1 && annoCount <= 5;
             } else if (activeFilter === 'anno-gt5') {
                 matchesFilter = annoCount > 5;
-            } else if (activeFilter === 'class-1') {
-                matchesFilter = classCount === 1;
-            } else if (activeFilter === 'class-multi') {
-                matchesFilter = classCount >= 2;
             } else if (activeFilter === 'custom-range') {
                 if (customRange.annoMin !== null && annoCount < customRange.annoMin) matchesFilter = false;
                 if (customRange.annoMax !== null && annoCount > customRange.annoMax) matchesFilter = false;
-                if (customRange.classMin !== null && classCount < customRange.classMin) matchesFilter = false;
-                if (customRange.classMax !== null && classCount > customRange.classMax) matchesFilter = false;
             }
+
+            // Multi-class OR filter
             const rowClasses = (row.dataset.classes || '').split(' ').filter(Boolean);
-            const matchesClass = activeClassFilter === 'all' || rowClasses.includes(activeClassFilter);
+            const matchesClass = selectedClasses.size === 0 || Array.from(selectedClasses).some(cls => rowClasses.includes(cls));
+
             row.hidden = !(matchesFilter && matchesClass);
             const checkbox = row.querySelector('.image-checkbox');
             if (row.hidden && checkbox) checkbox.checked = false;
@@ -190,6 +194,20 @@ export function refreshImageList() {
         item.classList.toggle('active', selected);
         item.setAttribute('aria-current', selected ? 'true' : 'false');
     });
+
+    // Update filter count badge on Filter buttons
+    let activeFilterCount = 0;
+    if (activeFilter !== 'all') activeFilterCount += 1;
+    if (selectedClasses.size > 0) activeFilterCount += selectedClasses.size;
+
+    ['filter-count-badge', 'filter-count-badge-annotation'].forEach(badgeId => {
+        const badge = document.getElementById(badgeId);
+        if (badge) {
+            badge.textContent = activeFilterCount;
+            badge.style.display = activeFilterCount > 0 ? 'inline-flex' : 'none';
+        }
+    });
+
     ['sort-btn', 'sort-btn-annotation', 'filter-btn', 'filter-btn-annotation'].forEach(id => {
         const button = document.getElementById(id);
         if (!button) return;
@@ -201,15 +219,10 @@ export function refreshImageList() {
             if (customRange.annoMin !== null || customRange.annoMax !== null) {
                 parts.push(`Anno: ${customRange.annoMin ?? 0}–${customRange.annoMax ?? '∞'}`);
             }
-            if (customRange.classMin !== null || customRange.classMax !== null) {
-                parts.push(`Class: ${customRange.classMin ?? 0}–${customRange.classMax ?? '∞'}`);
-            }
             labelText = parts.join(', ') || 'Custom Range';
         }
         button.title = `${isFilter ? 'Filter' : 'Sort'}: ${labelText}`;
-        const label = button.querySelector('.image-list-control-label');
-        if (label && isFilter) label.textContent = activeFilter === 'all' ? 'All Images' : labelText;
-        button.classList.toggle('active', !isFilter || activeFilter !== 'all');
+        button.classList.toggle('active', isFilter ? activeFilterCount > 0 : activeSort !== 'name-asc');
     });
     document.querySelectorAll('.image-list-empty').forEach(el => { el.hidden = visible.length !== 0; });
     const excluded = document.getElementById('image-filter-notice');
@@ -232,7 +245,12 @@ export function refreshImageList() {
 
 function savePreferences() {
     try {
-        localStorage.setItem(storageKey, JSON.stringify({ sort: activeSort, filter: activeFilter, customRange }));
+        localStorage.setItem(storageKey, JSON.stringify({
+            sort: activeSort,
+            filter: activeFilter,
+            customRange,
+            selectedClasses: Array.from(selectedClasses)
+        }));
     } catch (error) {
         console.warn('Cannot save image list preferences', error);
     }
@@ -257,9 +275,30 @@ export function filterImages(filterType) {
     savePreferences();
 }
 
+export function toggleClassFilter(className) {
+    if (!className) return;
+    if (selectedClasses.has(className)) {
+        selectedClasses.delete(className);
+    } else {
+        selectedClasses.add(className);
+    }
+    syncClassCheckboxUI();
+    savePreferences();
+}
+
+export function clearClassFilters() {
+    selectedClasses.clear();
+    syncClassCheckboxUI();
+    savePreferences();
+}
+
 export function filterByClass(className) {
-    activeClassFilter = className || 'all';
-    refreshImageList();
+    selectedClasses.clear();
+    if (className && className !== 'all') {
+        selectedClasses.add(className);
+    }
+    syncClassCheckboxUI();
+    savePreferences();
 }
 
 export function navigateImage(direction) {

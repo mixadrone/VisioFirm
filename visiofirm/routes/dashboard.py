@@ -7,6 +7,8 @@ from visiofirm.models import Project
 from visiofirm.config import PROJECTS_FOLDER, VALID_IMAGE_EXTENSIONS, VALID_VIDEO_EXTENSIONS
 from werkzeug.utils import secure_filename
 import os
+import sqlite3
+from contextlib import closing
 import logging
 from pydantic import BaseModel, StrictBool, StrictInt
 from typing import Optional
@@ -251,6 +253,252 @@ async def get_project_classes(request: Request, project_name: str, current_user:
     except Exception as e:
         logger.exception("Error fetching classes for %s", project_name)
         raise HTTPException(status_code=500, detail=f'Server error: {str(e)}')
+
+@router.get("/get_project_class_stats/{project_name}")
+async def get_project_class_stats(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    safe_name = secure_filename(project_name)
+    project_path = os.path.join(PROJECTS_FOLDER, safe_name)
+    db_path = os.path.join(project_path, "config.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project not found')
+
+    try:
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT class_name FROM Classes ORDER BY rowid")
+            classes = [row[0] for row in cursor.fetchall()]
+
+            cursor.execute("SELECT class_name, COUNT(*) FROM Annotations GROUP BY class_name")
+            anno_counts = dict(cursor.fetchall())
+
+            cursor.execute("SELECT class_name, COUNT(*) FROM Preannotations GROUP BY class_name")
+            preanno_counts = dict(cursor.fetchall())
+
+        stats = []
+        for idx, cls in enumerate(classes):
+            stats.append({
+                "id": idx,
+                "class_name": cls,
+                "annotations_count": anno_counts.get(cls, 0),
+                "preannotations_count": preanno_counts.get(cls, 0),
+                "total_count": anno_counts.get(cls, 0) + preanno_counts.get(cls, 0)
+            })
+
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        logger.exception("Error fetching class stats for %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/rename_project_class/{project_name}")
+async def rename_project_class(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    safe_name = secure_filename(project_name)
+    project_path = os.path.join(PROJECTS_FOLDER, safe_name)
+    db_path = os.path.join(project_path, "config.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project not found')
+
+    data = await request.json()
+    old_class = (data.get('old_class') or '').strip()
+    new_class = (data.get('new_class') or '').strip()
+    if not old_class or not new_class:
+        raise HTTPException(status_code=400, detail='Both old_class and new_class are required')
+
+    try:
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM Classes WHERE class_name = ?", (old_class,))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail='Class not found')
+            cursor.execute("SELECT 1 FROM Classes WHERE class_name = ?", (new_class,))
+            target_exists = cursor.fetchone() is not None
+
+            # Update in Annotations and Preannotations
+            cursor.execute("UPDATE Annotations SET class_name = ? WHERE class_name = ?", (new_class, old_class))
+            ann_updated = cursor.rowcount
+
+            cursor.execute("UPDATE Preannotations SET class_name = ? WHERE class_name = ?", (new_class, old_class))
+            pre_updated = cursor.rowcount
+
+            if old_class != new_class:
+                if target_exists:
+                    cursor.execute("DELETE FROM Classes WHERE class_name = ?", (old_class,))
+                else:
+                    cursor.execute("UPDATE Classes SET class_name = ? WHERE class_name = ?", (new_class, old_class))
+
+            conn.commit()
+
+        return {
+            "success": True,
+            "old_class": old_class,
+            "new_class": new_class,
+            "annotations_updated": ann_updated,
+            "preannotations_updated": pre_updated
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error renaming class in %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/delete_project_class/{project_name}")
+async def delete_project_class(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    safe_name = secure_filename(project_name)
+    project_path = os.path.join(PROJECTS_FOLDER, safe_name)
+    db_path = os.path.join(project_path, "config.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project not found')
+
+    data = await request.json()
+    class_name = (data.get('class_name') or '').strip()
+    delete_class_entry = data.get('delete_class_entry', True)
+    if not class_name:
+        raise HTTPException(status_code=400, detail='class_name is required')
+
+    try:
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            cursor = conn.cursor()
+
+            cursor.execute("DELETE FROM Annotations WHERE class_name = ?", (class_name,))
+            ann_deleted = cursor.rowcount
+
+            cursor.execute("DELETE FROM Preannotations WHERE class_name = ?", (class_name,))
+            pre_deleted = cursor.rowcount
+
+            if delete_class_entry:
+                cursor.execute("DELETE FROM Classes WHERE class_name = ?", (class_name,))
+
+            conn.commit()
+
+        return {
+            "success": True,
+            "class_name": class_name,
+            "annotations_deleted": ann_deleted,
+            "preannotations_deleted": pre_deleted
+        }
+    except Exception as e:
+        logger.exception("Error deleting class in %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reorder_project_classes/{project_name}")
+async def reorder_project_classes(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    safe_name = secure_filename(project_name)
+    project_path = os.path.join(PROJECTS_FOLDER, safe_name)
+    db_path = os.path.join(project_path, "config.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project not found')
+
+    data = await request.json()
+    new_classes_order = data.get('classes', [])
+    if not isinstance(new_classes_order, list) or not new_classes_order or not all(isinstance(cls, str) and cls.strip() == cls and cls for cls in new_classes_order):
+        raise HTTPException(status_code=400, detail='classes array is required')
+
+    try:
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            cursor = conn.cursor()
+            cursor.execute("SELECT class_name FROM Classes")
+            existing_classes = [row[0] for row in cursor.fetchall()]
+            if len(new_classes_order) != len(existing_classes) or set(new_classes_order) != set(existing_classes):
+                raise HTTPException(status_code=400, detail='classes must contain every current class exactly once')
+            cursor.execute("DELETE FROM Classes")
+            for cls in new_classes_order:
+                cursor.execute("INSERT INTO Classes (class_name) VALUES (?)", (cls,))
+            conn.commit()
+
+        return {"success": True, "classes": new_classes_order}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error reordering classes in %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/run_project_edge_filter/{project_name}")
+async def run_project_edge_filter(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    safe_name = secure_filename(project_name)
+    project_path = os.path.join(PROJECTS_FOLDER, safe_name)
+    db_path = os.path.join(project_path, "config.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project not found')
+
+    data = await request.json()
+    mode = data.get('mode', 'move')
+    tolerance = int(data.get('tolerance', 3))
+    edge_class = (data.get('class_name') or '_edge_review').strip()
+
+    try:
+        def touches_edge(x, y, w, h, img_w, img_h, tol):
+            return (
+                (x - w / 2) <= tol or
+                (y - h / 2) <= tol or
+                (x + w / 2) >= img_w - tol or
+                (y + h / 2) >= img_h - tol
+            )
+
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            cursor = conn.cursor()
+
+            if mode == 'delete':
+                cursor.execute("DELETE FROM Annotations WHERE class_name = ?", (edge_class,))
+                ann_deleted = cursor.rowcount
+                cursor.execute("DELETE FROM Preannotations WHERE class_name = ?", (edge_class,))
+                pre_deleted = cursor.rowcount
+                cursor.execute("DELETE FROM Classes WHERE class_name = ?", (edge_class,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "mode": "delete",
+                    "deleted_count": ann_deleted + pre_deleted,
+                    "edge_class": edge_class
+                }
+
+            # mode == 'move'
+            cursor.execute("INSERT OR IGNORE INTO Classes (class_name) VALUES (?)", (edge_class,))
+            cursor.execute("SELECT image_id, width, height FROM Images")
+            images = cursor.fetchall()
+
+            total_flagged = 0
+            affected_images = set()
+
+            for table, id_col in [("Annotations", "annotation_id"), ("Preannotations", "preannotation_id")]:
+                for image_id, img_w, img_h in images:
+                    if img_w is None or img_h is None:
+                        continue
+
+                    cursor.execute(
+                        f"SELECT {id_col}, x, y, width, height FROM {table} WHERE image_id = ? AND class_name != ?",
+                        (image_id, edge_class)
+                    )
+                    rows = cursor.fetchall()
+                    flagged_ids = []
+                    for row_id, x, y, w, h in rows:
+                        if x is None or y is None or w is None or h is None:
+                            continue
+                        if touches_edge(x, y, w, h, img_w, img_h, tolerance):
+                            flagged_ids.append(row_id)
+
+                    if flagged_ids:
+                        cursor.executemany(
+                            f"UPDATE {table} SET class_name = ? WHERE {id_col} = ?",
+                            [(edge_class, rid) for rid in flagged_ids]
+                        )
+                        total_flagged += len(flagged_ids)
+                        affected_images.add(image_id)
+
+            conn.commit()
+
+        return {
+            "success": True,
+            "mode": "move",
+            "flagged_count": total_flagged,
+            "affected_images_count": len(affected_images),
+            "edge_class": edge_class
+        }
+    except Exception as e:
+        logger.exception("Error running edge filter for %s", project_name)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Synchronous routes run pixel decoding and SQLite work in FastAPI's thread pool.
 def _duplicate_project_path(project_name):

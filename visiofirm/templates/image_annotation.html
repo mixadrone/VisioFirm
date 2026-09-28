@@ -2301,15 +2301,7 @@
                 </button>
             </div>
 
-            <!-- Class Filter Combobox -->
-            <select id="class-filter" class="toolbar-class-select" title="Filter by Class">
-                <option value="all">All Classes</option>
-                {% for cls in classes %}
-                <option value="{{ cls }}">{{ cls }}</option>
-                {% endfor %}
-            </select>
 
-            <span class="toolbar-divider"></span>
 
             <!-- Bulk Actions -->
             <div class="bulk-actions">
@@ -2333,6 +2325,7 @@
             <div class="dropdown image-list-dropdown">
                 <button id="filter-btn" class="layout-btn" title="Filter Images">
                     <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                    <span class="filter-count-badge" id="filter-count-badge" style="display: none;">0</span>
                 </button>
                 <div class="dropdown-content filter-dropdown-content">
                     <div class="dropdown-section-title">Status</div>
@@ -2341,26 +2334,37 @@
                     <a href="#" data-filter="preannotated">Pre-Annotated</a>
                     <a href="#" data-filter="unannotated">Not Annotated</a>
 
-                    <div class="dropdown-section-title">Count Presets</div>
+                    <div class="dropdown-section-title">
+                        <span>Classes</span>
+                        <div class="dropdown-section-actions">
+                            <button type="button" class="filter-class-clear-btn" id="filter-class-clear-btn">Clear</button>
+                        </div>
+                    </div>
+                    <div class="filter-classes-search-wrapper">
+                        <input type="text" class="filter-classes-search-input" placeholder="Search..." autocomplete="off">
+                    </div>
+                    <div class="filter-classes-list" id="filter-classes-list">
+                        {% for cls in classes %}
+                        <label class="filter-class-item">
+                            <input type="checkbox" class="filter-class-checkbox" value="{{ cls }}">
+                            <span class="filter-class-dot" data-class="{{ cls }}"></span>
+                            <span class="filter-class-name" title="{{ cls }}">{{ cls }}</span>
+                            <span class="filter-class-check"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <div class="dropdown-section-title">Annotations Count</div>
                     <a href="#" data-filter="anno-0">No Annotations (0)</a>
                     <a href="#" data-filter="anno-1-5">1 – 5 Annotations</a>
                     <a href="#" data-filter="anno-gt5">&gt; 5 Annotations</a>
-                    <a href="#" data-filter="class-1">Single Class (1)</a>
-                    <a href="#" data-filter="class-multi">Multi-Class (2+)</a>
 
-                    <div class="dropdown-section-title">Custom Range</div>
                     <div class="filter-range-block">
                         <div class="filter-range-row">
-                            <span class="range-label">Annotations:</span>
+                            <span class="range-label">Range:</span>
                             <input type="number" class="filter-range-anno-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
                             <span class="range-dash">–</span>
                             <input type="number" class="filter-range-anno-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
-                        </div>
-                        <div class="filter-range-row">
-                            <span class="range-label">Classes:</span>
-                            <input type="number" class="filter-range-class-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
-                            <span class="range-dash">–</span>
-                            <input type="number" class="filter-range-class-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
                         </div>
                         <div class="filter-range-actions">
                             <button type="button" class="filter-range-apply-btn">Apply</button>
@@ -2442,19 +2446,29 @@
                             <span class="thumbnail-count-badge grid-card-badge" title="{{ image.annotation_count }} annotations"{% if image.annotation_count == 0 %} style="display:none;"{% endif %}>{{ image.annotation_count }}</span>
                         </div>
                         <div class="card-info">
-                            <span class="image-id">{{ image.id }}</span>
-                            <span class="image-date">{{ image.date[:10] if image.date else 'Unknown' }}</span>
-                            <span class="image-status" 
-                                data-annotated="{{ 'true' if image.annotated else 'false' }}" 
-                                data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
-                                {% if image.annotated %}
-                                    Annotated
-                                {% elif image.preannotated %}
-                                    Pre-Annotated
-                                {% else %}
-                                    Not Annotated
-                                {% endif %}
-                            </span>
+                            <span class="image-id" data-filename="{{ image.filename }}" data-id-num="{{ image.id }}" title="{{ image.filename }}">{{ image.id }}</span>
+                            <div class="card-meta">
+                                <span class="image-date" style="display: none;">{{ image.date[:10] if image.date else '' }}</span>
+                                <span class="image-status" 
+                                    style="display: none;"
+                                    data-annotated="{{ 'true' if image.annotated else 'false' }}" 
+                                    data-preannotated="{{ 'true' if image.preannotated else 'false' }}">
+                                    {% if image.annotated %}
+                                        Annotated
+                                    {% elif image.preannotated %}
+                                        Pre-Annotated
+                                    {% else %}
+                                        Not Annotated
+                                    {% endif %}
+                                </span>
+                                <div class="card-class-dots" title="Classes on this image">
+                                    {% if image.classes %}
+                                        {% for cls in image.classes %}
+                                            <span class="card-class-dot" data-class="{{ cls }}" title="{{ cls }}"></span>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -2519,26 +2533,82 @@
 
     <!-- Classes Tab Content -->
     <div id="tab-content-classes" class="project-tab-panel">
-        <div class="classes-panel-card">
-            <h3 class="panel-header-title"><i class="fa-solid fa-tags"></i> Project Classes</h3>
-            <p style="color: var(--text-light); margin-bottom: 16px; font-size: 0.9rem;">
-                Classes defined for <strong>{{ project_name }}</strong> ({{ setup_type }}):
-            </p>
-            <div class="classes-grid-list">
-                {% for cls in classes %}
-                <div class="class-item-chip">
-                    <span class="pill-dot dot-annotated"></span>
-                    <span>{{ cls }}</span>
+        <div class="models-panel-card" style="max-width: 1040px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h3 class="panel-header-title"><i class="fa-solid fa-tags"></i> Class Management & Dataset Operations</h3>
+                    <p style="color: var(--text-light); font-size: 0.88rem; margin-top: 4px;">
+                        Manage classes for <strong>{{ project_name }}</strong> ({{ setup_type }}). Rename, merge, reorder YOLO class IDs, and clean up edge annotations.
+                    </p>
                 </div>
-                {% endfor %}
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="pvh-action-btn primary" id="tab-open-add-classes">
+                        <i class="fa-solid fa-plus"></i> Add Classes
+                    </button>
+                    <button type="button" class="layout-btn" id="classes-refresh-stats-btn" title="Refresh Class Counts">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                </div>
             </div>
-            <div style="display: flex; gap: 12px;">
-                <button type="button" class="pvh-action-btn primary" id="tab-open-add-classes">
-                    <i class="fa-solid fa-plus"></i> Add New Classes
-                </button>
-                <button type="button" class="layout-btn" id="tab-open-style-settings">
-                    <i class="fa-solid fa-palette"></i> Style Settings
-                </button>
+
+            <!-- Class Table -->
+            <div class="classes-table-container">
+                <table class="classes-mgmt-table" id="classes-mgmt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">ID</th>
+                            <th style="width: 50px;">Color</th>
+                            <th>Class Name</th>
+                            <th style="width: 130px; text-align: right;">Annotations</th>
+                            <th style="width: 130px; text-align: right;">Pre-annotations</th>
+                            <th style="width: 100px; text-align: right;">Total</th>
+                            <th style="width: 220px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="classes-table-body">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Dataset Clean-up & Edge Filter Card -->
+            <div class="edge-filter-panel-card" style="margin-top: 24px;">
+                <div class="edge-filter-header">
+                    <div>
+                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-scissors"></i> Dataset Clean-up & Edge Filter
+                        </h4>
+                        <p style="font-size: 0.8rem; color: var(--text-light); margin-top: 3px;">
+                            Identify and isolate bounding boxes that touch image borders within a pixel tolerance. Safe 2-step verification workflow.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="edge-filter-controls-row">
+                    <div class="edge-filter-input-group">
+                        <label for="edge-filter-tolerance">Edge Proximity Tolerance:</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="number" id="edge-filter-tolerance" value="3" min="0" max="50" style="width: 65px; height: 32px;" class="filter-num-input">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">px</span>
+                        </div>
+                    </div>
+
+                    <div class="edge-filter-input-group">
+                        <label for="edge-filter-class-name">Review Class:</label>
+                        <input type="text" id="edge-filter-class-name" value="_edge_review" style="width: 140px; height: 32px;" class="modal-text-input">
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: flex-end; margin-left: auto;">
+                        <button type="button" class="layout-btn" id="edge-filter-move-btn" title="Move touching labels into review class">
+                            <i class="fa-solid fa-flag"></i> Flag Edge Labels
+                        </button>
+                        <button type="button" class="pvh-action-btn danger-btn" id="edge-filter-delete-btn" title="Delete all labels in review class">
+                            <i class="fa-solid fa-trash-can"></i> Delete Flagged Labels
+                        </button>
+                    </div>
+                </div>
+
+                <div id="edge-filter-result" style="display: none; margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 0.82rem;"></div>
             </div>
         </div>
     </div>
@@ -2943,6 +3013,52 @@
                             Automatically saves any modified annotations when switching between images (via keyboard navigation or thumbnail clicks). If an image has AI pre-annotations but was not edited, it remains untouched without accidental approval.
                         </p>
                     </div>
+
+                    <!-- Gallery Cards Display Settings -->
+                    <div style="margin-top: 16px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-table-cells"></i> Gallery Cards Display
+                        </h4>
+                        <p style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">
+                            Configure what information appears on each thumbnail card in the gallery grid. Settings are stored globally.
+                        </p>
+                    </div>
+
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-card-dots" checked>
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Show Class Dots</span>
+                        </label>
+                        <p class="workflow-setting-desc">Display colored indicator dots for all object classes detected on the image. Click any dot to filter the gallery by that class.</p>
+                    </div>
+
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-card-filename">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Show Full Filename</span>
+                        </label>
+                        <p class="workflow-setting-desc">Display the full image filename (e.g. DJI_...0003.JPG) instead of the short numerical ID.</p>
+                    </div>
+
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-card-date">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Show File Date</span>
+                        </label>
+                        <p class="workflow-setting-desc">Display the file modification / upload date on the card.</p>
+                    </div>
+
+                    <div class="workflow-setting-card">
+                        <label class="workflow-switch-label">
+                            <input type="checkbox" id="setting-card-status">
+                            <span class="workflow-switch-slider"></span>
+                            <span class="workflow-switch-title">Show Status Text Badge</span>
+                        </label>
+                        <p class="workflow-setting-desc">Display explicit text badges ("Annotated", "Pre-Annotated", "Not Annotated") alongside the corner status dot.</p>
+                    </div>
                 </div>
             </div>
             
@@ -2959,6 +3075,7 @@
                 <div class="dropdown image-list-dropdown">
                     <button id="filter-btn-annotation" class="layout-btn" title="Filter images">
                         <i class="fas fa-filter" aria-hidden="true"></i>
+                        <span class="filter-count-badge" id="filter-count-badge-annotation" style="display: none;">0</span>
                     </button>
                     <div class="dropdown-content filter-dropdown-content">
                         <div class="dropdown-section-title">Status</div>
@@ -2967,26 +3084,37 @@
                         <a href="#" data-filter="preannotated">Pre-Annotated</a>
                         <a href="#" data-filter="unannotated">Not Annotated</a>
 
-                        <div class="dropdown-section-title">Count Presets</div>
+                        <div class="dropdown-section-title">
+                            <span>Classes</span>
+                            <div class="dropdown-section-actions">
+                                <button type="button" class="filter-class-clear-btn">Clear</button>
+                            </div>
+                        </div>
+                        <div class="filter-classes-search-wrapper">
+                            <input type="text" class="filter-classes-search-input" placeholder="Search..." autocomplete="off">
+                        </div>
+                        <div class="filter-classes-list">
+                            {% for cls in classes %}
+                            <label class="filter-class-item">
+                                <input type="checkbox" class="filter-class-checkbox" value="{{ cls }}">
+                                <span class="filter-class-dot" data-class="{{ cls }}"></span>
+                                <span class="filter-class-name" title="{{ cls }}">{{ cls }}</span>
+                                <span class="filter-class-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="dropdown-section-title">Annotations Count</div>
                         <a href="#" data-filter="anno-0">No Annotations (0)</a>
                         <a href="#" data-filter="anno-1-5">1 – 5 Annotations</a>
                         <a href="#" data-filter="anno-gt5">&gt; 5 Annotations</a>
-                        <a href="#" data-filter="class-1">Single Class (1)</a>
-                        <a href="#" data-filter="class-multi">Multi-Class (2+)</a>
 
-                        <div class="dropdown-section-title">Custom Range</div>
                         <div class="filter-range-block">
                             <div class="filter-range-row">
-                                <span class="range-label">Annotations:</span>
+                                <span class="range-label">Range:</span>
                                 <input type="number" class="filter-range-anno-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
                                 <span class="range-dash">–</span>
                                 <input type="number" class="filter-range-anno-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
-                            </div>
-                            <div class="filter-range-row">
-                                <span class="range-label">Classes:</span>
-                                <input type="number" class="filter-range-class-min filter-num-input" min="0" placeholder="Min" autocomplete="off">
-                                <span class="range-dash">–</span>
-                                <input type="number" class="filter-range-class-max filter-num-input" min="0" placeholder="Max" autocomplete="off">
                             </div>
                             <div class="filter-range-actions">
                                 <button type="button" class="filter-range-apply-btn">Apply</button>
@@ -3113,6 +3241,10 @@
 
                     <button type="button" class="shortcuts-toggle shortcuts-chip" title="Keyboard shortcuts" aria-expanded="false" aria-controls="annotation-shortcuts">
                         <i class="fas fa-keyboard"></i> <span>Shortcuts</span>
+                    </button>
+
+                    <button type="button" class="control-btn icon-only" id="studio-settings-btn" title="Open Project & Display Settings" aria-label="Settings">
+                        <i class="fa-solid fa-gear"></i>
                     </button>
 
                     <div class="toolbar-divider"></div>
@@ -3449,6 +3581,46 @@
             </form>
         </div>
     </div>
+
+    <!-- Rename / Merge Class Modal -->
+    <div class="modal" id="rename-class-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <button class="close-btn" id="rename-class-close-btn">&times;</button>
+            <h2 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> Rename / Merge Class</h2>
+            <form id="rename-class-form" style="margin-top: 14px;">
+                <div class="form-group">
+                    <label style="font-size: 0.84rem; font-weight: 600; color: var(--text-color);">Current Class:</label>
+                    <input type="text" id="rename-class-old" readonly style="background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: not-allowed;">
+                </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label style="font-size: 0.84rem; font-weight: 600; color: var(--text-color);">New Name or Target Class to Merge Into:</label>
+                    <input type="text" id="rename-class-new" placeholder="Enter new class name" required autocomplete="off">
+                    <p style="font-size: 0.76rem; color: var(--text-light); margin-top: 4px;">
+                        Tip: If you enter an existing class name, all labels will be <strong>merged</strong> into that class.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end;">
+                    <button type="button" class="cancel-btn" id="rename-class-cancel-btn">Cancel</button>
+                    <button type="submit" class="create-btn" style="width: auto; padding: 8px 18px; font-size: 0.9rem;">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Destructive Action Modal -->
+    <div class="modal" id="confirm-class-action-modal">
+        <div class="modal-content" style="max-width: 440px;">
+            <button class="close-btn" id="confirm-class-action-close-btn">&times;</button>
+            <h2 class="modal-title" id="confirm-class-modal-title" style="color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Confirm Action</h2>
+            <div id="confirm-class-modal-body" style="margin-top: 12px; font-size: 0.88rem; color: var(--text-color); line-height: 1.5;">
+                <!-- Filled dynamically with action details & object counts -->
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+                <button type="button" class="cancel-btn" id="confirm-class-action-cancel-btn">Cancel</button>
+                <button type="button" class="pvh-action-btn danger-btn" id="confirm-class-action-submit-btn" style="padding: 8px 18px;">Confirm & Proceed</button>
+            </div>
+        </div>
+    </div>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/setup.css">
@@ -3461,7 +3633,7 @@
         }
     </script>
     <script src="/static/js/jslib/plotly-2.35.2.min.js"></script>
-    <script type="module" src="/static/js/main.js?v=20260928-v8"></script>
+    <script type="module" src="/static/js/main.js?v=20260928-v12"></script>
 
     <script>
         (function() {

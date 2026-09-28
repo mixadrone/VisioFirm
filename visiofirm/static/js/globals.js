@@ -51,6 +51,31 @@ export function setIsAdvanceAfterSaveEnabled(value) {
     localStorage.setItem('visiofirm_advance_after_save', String(isAdvanceAfterSaveEnabled));
 }
 
+// Global gallery card display settings
+export let isCardShowDots = localStorage.getItem('visiofirm_card_show_dots') !== 'false'; // default true
+export function setIsCardShowDots(value) {
+    isCardShowDots = Boolean(value);
+    localStorage.setItem('visiofirm_card_show_dots', String(isCardShowDots));
+}
+
+export let isCardShowFilename = localStorage.getItem('visiofirm_card_show_filename') === 'true'; // default false
+export function setIsCardShowFilename(value) {
+    isCardShowFilename = Boolean(value);
+    localStorage.setItem('visiofirm_card_show_filename', String(isCardShowFilename));
+}
+
+export let isCardShowDate = localStorage.getItem('visiofirm_card_show_date') === 'true'; // default false
+export function setIsCardShowDate(value) {
+    isCardShowDate = Boolean(value);
+    localStorage.setItem('visiofirm_card_show_date', String(isCardShowDate));
+}
+
+export let isCardShowStatus = localStorage.getItem('visiofirm_card_show_status') === 'true'; // default false
+export function setIsCardShowStatus(value) {
+    isCardShowStatus = Boolean(value);
+    localStorage.setItem('visiofirm_card_show_status', String(isCardShowStatus));
+}
+
 export function setIsModified(value) { isModified = Boolean(value); }
 export function setIsAutoSaveEnabled(value) {
     isAutoSaveEnabled = Boolean(value);
