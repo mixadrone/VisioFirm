@@ -3119,6 +3119,79 @@ html, body {
     flex-shrink: 0;
 }
 
+.quick-settings-anchor {
+    position: relative;
+}
+
+.quick-settings-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 290px;
+    padding: 8px;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    z-index: 100;
+}
+
+.quick-settings-menu[hidden] {
+    display: none;
+}
+
+.quick-settings-heading {
+    padding: 6px 8px 9px;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.quick-setting-item {
+    min-height: 36px;
+}
+
+.quick-setting-item .filter-class-name {
+    white-space: normal;
+    line-height: 1.35;
+}
+
+.quick-setting-item:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+}
+
+.quick-setting-checkbox {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    margin: 0;
+    width: 0;
+    height: 0;
+}
+
+.quick-setting-checkbox:checked ~ .filter-class-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.quick-settings-more {
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px 8px;
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-light);
+    text-align: left;
+    cursor: pointer;
+}
+
+.quick-settings-more:hover {
+    color: var(--text-color);
+}
+
 .top-annotation-toolbar .magic-model-trigger {
     color: var(--text-light) !important;
 }

@@ -376,6 +376,9 @@ function initEdgeFilter() {
                     resultBox.style.color = '#22c55e';
                     resultBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> Flagged <strong>${res.flagged_count}</strong> labels across <strong>${res.affected_images_count}</strong> images into review class <code>${res.edge_class}</code>.`;
                     loadClassStats();
+                    if (res.flagged_count > 0) {
+                        setTimeout(() => window.location.reload(), 1200);
+                    }
                 } else {
                     resultBox.style.background = 'rgba(239, 68, 68, 0.12)';
                     resultBox.style.color = '#ef4444';
@@ -425,10 +428,7 @@ function initEdgeFilter() {
                     });
                     const res = await response.json();
                     if (res.success) {
-                        resultBox.style.background = 'rgba(34, 197, 94, 0.12)';
-                        resultBox.style.color = '#22c55e';
-                        resultBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> Deleted <strong>${res.deleted_count}</strong> labels and removed class <code>${res.edge_class}</code>.`;
-                        loadClassStats();
+                        window.location.reload();
                     }
                 } catch (e) {
                     console.error(e);

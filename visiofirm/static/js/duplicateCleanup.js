@@ -6,6 +6,7 @@
     const selectAll = document.getElementById('duplicates-select-all');
     const selectAllLabel = document.getElementById('duplicates-select-all-label');
     let groupCheckboxes = [];
+    let removeCheckboxes = [];
     const summary = document.getElementById('duplicates-summary');
     const loss = document.getElementById('duplicates-loss');
     const lossLabel = document.getElementById('duplicates-loss-label');
@@ -21,7 +22,7 @@
     let project, groups = [], busy = false, changed = false, finished = false;
     const element = (tag, text) => { const node = document.createElement(tag); node.textContent = text; return node; };
     const size = bytes => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-    const selected = () => groups.filter(group => group.enabled).flatMap(group => group.members.filter(m => m.image_id !== group.keep_id));
+    const selected = () => groups.filter(group => group.enabled).flatMap(group => group.members.filter(m => group.remove_ids.includes(m.image_id)));
     function update() {
         const enabledCount = groups.filter(group => group.enabled).length;
         selectAllLabel.hidden = finished || !groups.length;
@@ -29,6 +30,10 @@
         selectAll.checked = groups.length > 0 && enabledCount === groups.length;
         selectAll.indeterminate = enabledCount > 0 && enabledCount < groups.length;
         groupCheckboxes.forEach((checkbox, index) => { checkbox.checked = groups[index].enabled; });
+        removeCheckboxes.forEach(({checkbox,group,member}) => {
+            checkbox.checked = group.remove_ids.includes(member.image_id);
+            checkbox.disabled = member.image_id === group.keep_id || busy || finished;
+        });
         summary.hidden = finished;
         clean.hidden = finished;
         clean.textContent = busy ? 'Processing…' : 'Remove selected duplicates';
@@ -52,14 +57,20 @@
     function render() {
         container.replaceChildren();
         groupCheckboxes = [];
+        removeCheckboxes = [];
         groups.forEach((group,index) => {
             const field = document.createElement('fieldset');
             field.style.marginBottom = '16px';
-            field.append(element('legend', `Group ${index+1} — ${group.source_name || "Source"}${group.conflict ? ' — conflicting reviewed/manual copies; skipped by default' : ''}`));
+            field.append(element('legend', `Group ${index+1} — ${group.source_name || "Source"}`));
             const enableLabel = element('label',' Include this group');
             const enable = document.createElement('input'); enable.type='checkbox'; enable.checked=group.enabled;
+            enable.dataset.groupToggle='true';
             groupCheckboxes.push(enable);
-            enable.addEventListener('change',()=>{group.enabled=enable.checked; loss.checked=false; update();});
+            enable.addEventListener('change',()=>{
+                group.enabled=enable.checked;
+                if (group.enabled && !group.remove_ids.length) group.remove_ids=group.members.filter(m=>m.image_id!==group.keep_id).map(m=>m.image_id);
+                loss.checked=false; update();
+            });
             enableLabel.prepend(enable); field.append(enableLabel);
             group.members.forEach(member => {
                 const row = document.createElement('label');
@@ -67,12 +78,20 @@
                 const radio=document.createElement('input'); radio.type='radio'; radio.name=`duplicate-${index}`;
                 radio.checked=member.image_id===group.keep_id;
                 radio.setAttribute('aria-label',`Keep ${member.name}`);
-                radio.addEventListener('change',()=>{group.keep_id=member.image_id;loss.checked=false;update();});
+                radio.addEventListener('change',()=>{group.keep_id=member.image_id;group.remove_ids=group.members.filter(m=>m.image_id!==member.image_id).map(m=>m.image_id);loss.checked=false;update();});
+                const remove=document.createElement('input'); remove.type='checkbox';
+                removeCheckboxes.push({checkbox:remove,group,member});
+                remove.checked=group.remove_ids.includes(member.image_id); remove.disabled=member.image_id===group.keep_id;
+                remove.setAttribute('aria-label',`Remove ${member.name}`);
+                remove.addEventListener('change',()=>{
+                    group.remove_ids=group.members.filter(m=>m.image_id!==group.keep_id && (m.image_id===member.image_id ? remove.checked : group.remove_ids.includes(m.image_id))).map(m=>m.image_id);
+                    loss.checked=false;update();
+                });
                 const image=document.createElement('img'); image.src=member.url; image.alt=member.name;
                 image.loading='lazy'; image.style.cssText='width:96px;height:72px;object-fit:contain';
                 const tile=member.name.match(/^(.*)_x(\d+)_y(\d+)\.[^.]+$/i);
                 const info=element('span',`Keep: ${member.name} · ${member.width}×${member.height} · ${size(member.bytes)} · ${member.reviewed ? 'Reviewed' : 'Not reviewed'} · ${member.annotations} manual · ${member.preannotations} AI${tile ? ` · Source: ${tile[1]}, tile (${tile[2]}, ${tile[3]})` : ''}`);
-                row.append(radio,image,info);field.append(row);
+                row.append(radio,remove,image,info);field.append(row);
             });
             container.append(field);
         });
@@ -86,7 +105,12 @@
         close.disabled=true;
         try {
             const data=await request('scan_duplicates');
-            groups=data.groups.map(group=>({...group,enabled:!group.conflict}));
+            groups=data.groups.map(group=>{
+                const keep=group.keep_id;
+                const protectedCopies=group.members.filter(m=>m.reviewed || m.annotations);
+                const remove_ids=group.members.filter(m=>m.image_id!==keep && (!protectedCopies.length || !(m.reviewed || m.annotations))).map(m=>m.image_id);
+                return {...group,remove_ids,enabled:remove_ids.length>0};
+            });
             status.textContent=`Scanned ${data.scanned} images. ${groups.length ? `${groups.length} source filename groups found.` : 'No repeated source filenames found.'} ${data.skipped.length} files skipped.`;
             render();
             data.skipped.forEach(item=>container.append(element('p',`Skipped image ${item.image_id}: ${item.reason}`)));
@@ -95,14 +119,17 @@
     }));
     selectAll.addEventListener('change', () => {
         if (busy || finished || !groups.length) return;
-        groups.forEach(group => { group.enabled = selectAll.checked; });
+        groups.forEach(group => {
+            group.enabled = selectAll.checked;
+            if (group.enabled && !group.remove_ids.length) group.remove_ids=group.members.filter(m=>m.image_id!==group.keep_id).map(m=>m.image_id);
+        });
         loss.checked = false;
         update();
     });
     loss.addEventListener('change',update);
     clean.addEventListener('click',async()=>{
         if (clean.disabled) return;
-        const selection=groups.filter(group=>group.enabled).map(group=>({members:group.members,token:group.token,keep_id:group.keep_id,remove_ids:group.members.filter(m=>m.image_id!==group.keep_id).map(m=>m.image_id)}));
+        const selection=groups.filter(group=>group.enabled && group.remove_ids.length).map(group=>({members:group.members,token:group.token,keep_id:group.keep_id,remove_ids:group.remove_ids}));
         busy=true;close.disabled=true;update();
         showResult('Removing selected files… Please wait.', 'pending');
         container.querySelectorAll('input').forEach(input=>{input.disabled=true;});

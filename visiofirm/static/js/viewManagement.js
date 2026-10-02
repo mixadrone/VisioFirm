@@ -99,7 +99,7 @@ export function initializeImageList() {
 }
 
 function syncClassCheckboxUI() {
-    document.querySelectorAll('.filter-class-checkbox').forEach(cb => {
+    document.querySelectorAll('.filter-classes-list .filter-class-checkbox').forEach(cb => {
         cb.checked = selectedClasses.has(cb.value);
     });
 }

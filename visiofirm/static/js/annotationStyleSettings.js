@@ -42,6 +42,16 @@ export function applyCardDisplaySettings() {
     });
 }
 
+export function syncQuickWorkflowSettingsUI() {
+    const autoSaveSwitch = document.getElementById('setting-autosave-switch');
+    const fitToLabelsSwitch = document.getElementById('setting-fit-to-labels');
+    const advanceAfterSaveSwitch = document.getElementById('setting-advance-after-save');
+
+    if (fitToLabelsSwitch) fitToLabelsSwitch.checked = isFitToLabelsEnabled;
+    if (advanceAfterSaveSwitch) advanceAfterSaveSwitch.checked = isAdvanceAfterSaveEnabled;
+    if (autoSaveSwitch) autoSaveSwitch.checked = isAutoSaveEnabled;
+}
+
 export function initAnnotationStyleSettings(config) {
     // Support inline panel mode (no modal) — only saveBtn is required
     const saveBtn = document.getElementById('annotation-style-save-btn');
@@ -91,11 +101,12 @@ export function initAnnotationStyleSettings(config) {
     }
 
     if (autoSaveSwitch) {
-        autoSaveSwitch.checked = isAutoSaveEnabled;
         autoSaveSwitch.addEventListener('change', e => {
             setIsAutoSaveEnabled(e.target.checked);
         });
     }
+
+    syncQuickWorkflowSettingsUI();
 
     if (cardDotsSwitch) {
         cardDotsSwitch.checked = isCardShowDots;

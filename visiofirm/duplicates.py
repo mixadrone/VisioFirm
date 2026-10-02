@@ -100,8 +100,9 @@ def clean_duplicates(project_path, groups, confirm_loss=False):
             keep = group["keep_id"]
             remove = group["remove_ids"]
             if (not ids or any(type(i) is not int for i in ids) or len(set(ids)) != len(ids)
-                    or keep not in ids or not remove or len(set(remove)) != len(remove)
-                    or set(remove) != set(ids) - {keep} or seen.intersection(ids)):
+                    or keep not in ids or not remove or any(type(i) is not int for i in remove)
+                    or len(set(remove)) != len(remove)
+                    or keep in remove or not set(remove).issubset(set(ids)) or seen.intersection(ids)):
                 raise ValueError("Invalid group selection")
             seen.update(ids)
             if not hmac.compare_digest(_token(root, members), group["token"]):

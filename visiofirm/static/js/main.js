@@ -30,7 +30,7 @@ import { setConfidenceThreshold } from './globals.js';
 import { initImportModal } from './importHandler.js';
 import { showLoadingOverlay, hideLoadingOverlay } from './spinnerLoader.js';
 import { initializeSegmentor } from './sam.js';
-import { initAnnotationStyleSettings } from './annotationStyleSettings.js';
+import { initAnnotationStyleSettings, syncQuickWorkflowSettingsUI } from './annotationStyleSettings.js';
 import { initClassManagement } from './classManagement.js';
 
 function hideLoadingAnimation() {
@@ -432,10 +432,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     document.getElementById('viewport-btn-annotation').addEventListener('click', switchToGridView);
 
-    // Studio Settings button in toolbar: switch to project view and open Settings tab
+    // Quick workflow settings in the annotation toolbar.
     const studioSettingsBtn = document.getElementById('studio-settings-btn');
     if (studioSettingsBtn) {
+        const menu = document.getElementById('quick-settings-menu');
+        const anchor = document.getElementById('quick-settings-anchor');
+        const closeMenu = () => {
+            menu.hidden = true;
+            studioSettingsBtn.setAttribute('aria-expanded', 'false');
+        };
         studioSettingsBtn.addEventListener('click', () => {
+            menu.hidden = !menu.hidden;
+            studioSettingsBtn.setAttribute('aria-expanded', String(!menu.hidden));
+            if (!menu.hidden) {
+                syncQuickWorkflowSettingsUI();
+            }
+        });
+        document.addEventListener('click', event => {
+            if (!anchor.contains(event.target)) closeMenu();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !menu.hidden) {
+                closeMenu();
+                studioSettingsBtn.focus();
+            }
+        });
+        document.getElementById('quick-settings-more').addEventListener('click', () => {
+            closeMenu();
             switchToGridView();
             const tabBtnSettings = document.getElementById('tab-btn-settings');
             if (tabBtnSettings) {
@@ -514,19 +537,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const result = await response.json();
                 if (result.success) {
-                    imageUrls.forEach(url => {
-                        const filename = url.split('/').pop();
-                        document.querySelectorAll(`#grid-thumbnails .grid-card .image-checkbox[data-path="${url}"]`)
-                            .forEach(cb => cb.closest('.grid-card').remove());
-                        document.querySelectorAll(`#list-table .image-checkbox[data-path="${url}"]`)
-                            .forEach(cb => cb.closest('tr').remove());
-                        document.querySelectorAll(`.thumbnail-row[data-id="${filename}"]`)
-                            .forEach(row => row.remove());
-                    });
-
                     deleteModal.style.display = 'none';
-                    refreshImageList();
-                    updateBulkActionsState();
+                    window.location.reload();
                 } else {
                     alert(result.error || 'Failed to delete images');
                 }

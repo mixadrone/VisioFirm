@@ -92,6 +92,15 @@ class DuplicateTests(unittest.TestCase):
         self.sql("INSERT INTO Annotations VALUES(1,2,'box')")
         self.assertEqual(self.group()["keep_id"],1)
 
+    def test_cleanup_can_remove_only_unreviewed_copy(self):
+        self.add(1); self.add(2); self.add(3)
+        self.sql("INSERT INTO ReviewedImages VALUES(1,'now')")
+        self.sql("INSERT INTO ReviewedImages VALUES(2,'now')")
+        group = self.group()
+        group["remove_ids"] = [3]
+        self.assertEqual(service.clean_duplicates(self.root, [group])["deleted"], [3])
+        self.assertEqual(self.sql("SELECT image_id FROM Images ORDER BY image_id"), [(1,), (2,)])
+
     def test_stale_annotations_and_file(self):
         self.add(1); second=self.add(2)
         group=self.group(); self.sql("INSERT INTO Preannotations VALUES(1,2,'prediction')")

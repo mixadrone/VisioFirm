@@ -31,10 +31,12 @@ async def get_current_user_optional(request: Request) -> Optional[User]:
     except HTTPException:
         return None
 
-def _process_temp_upload_dir(images_path, temp_upload_dir, videos_path: Optional[str] = None, setup_type: Optional[str] = None):
+def _process_temp_upload_dir(images_path, temp_upload_dir, videos_path: Optional[str] = None, setup_type: Optional[str] = None, existing_image_names=None):
     """Process files in temp_upload_dir: move valid images to images_path, flatten annotations to temp_upload_dir, handle archives by extracting and processing."""
     all_files = os.listdir(temp_upload_dir)
     image_paths = []
+    existing_image_names = set(existing_image_names or ())
+    existing_image_names.update(name.casefold() for name in os.listdir(images_path))
     annotation_extensions = {'.json', '.yaml', '.txt'}
 
     print(f"Processing {len(all_files)} files...")
@@ -55,12 +57,14 @@ def _process_temp_upload_dir(images_path, temp_upload_dir, videos_path: Optional
         if ext in VALID_IMAGE_EXTENSIONS:
             if is_valid_image(file_path):
                 final_path = os.path.join(images_path, secure_filename(filename))
-                if not os.path.exists(final_path):
+                if os.path.basename(final_path).casefold() not in existing_image_names:
                     lock_path = final_path + '.lock'
                     with FileLock(lock_path):
-                        shutil.move(file_path, final_path)
-                    image_paths.append(os.path.abspath(final_path))
-                    logger.info(f"Moved image {filename} to {final_path}")
+                        if not os.path.exists(final_path):
+                            shutil.move(file_path, final_path)
+                            image_paths.append(os.path.abspath(final_path))
+                            existing_image_names.add(os.path.basename(final_path).casefold())
+                            logger.info(f"Moved image {filename} to {final_path}")
                 else:
                     logger.info(f"Image {filename} already exists, skipping")
             else:
@@ -103,12 +107,14 @@ def _process_temp_upload_dir(images_path, temp_upload_dir, videos_path: Optional
                                 elif file_ext in VALID_IMAGE_EXTENSIONS:
                                     if is_valid_image(src_path):
                                         final_path = os.path.join(images_path, secure_filename(fname))
-                                        if not os.path.exists(final_path):
+                                        if os.path.basename(final_path).casefold() not in existing_image_names:
                                             lock_path = final_path + '.lock'
                                             with FileLock(lock_path):
-                                                shutil.move(src_path, final_path)
-                                            image_paths.append(os.path.abspath(final_path))
-                                            logger.info(f"Moved image {fname} from archive to {final_path}")
+                                                if not os.path.exists(final_path):
+                                                    shutil.move(src_path, final_path)
+                                                    image_paths.append(os.path.abspath(final_path))
+                                                    existing_image_names.add(os.path.basename(final_path).casefold())
+                                                    logger.info(f"Moved image {fname} from archive to {final_path}")
                                         else:
                                             logger.info(f"Image {fname} already exists, skipping")
                                     else:
@@ -124,12 +130,14 @@ def _process_temp_upload_dir(images_path, temp_upload_dir, videos_path: Optional
                             if file_ext in VALID_IMAGE_EXTENSIONS:
                                 if is_valid_image(src_path):
                                     final_path = os.path.join(images_path, secure_filename(fname))
-                                    if not os.path.exists(final_path):
+                                    if os.path.basename(final_path).casefold() not in existing_image_names:
                                         lock_path = final_path + '.lock'
                                         with FileLock(lock_path):
-                                            shutil.move(src_path, final_path)
-                                        image_paths.append(os.path.abspath(final_path))
-                                        logger.info(f"Moved image {fname} from archive to {final_path}")
+                                            if not os.path.exists(final_path):
+                                                shutil.move(src_path, final_path)
+                                                image_paths.append(os.path.abspath(final_path))
+                                                existing_image_names.add(os.path.basename(final_path).casefold())
+                                                logger.info(f"Moved image {fname} from archive to {final_path}")
                                     else:
                                         logger.info(f"Image {fname} already exists, skipping")
                                 else:
@@ -322,7 +330,9 @@ async def import_images(
             initial_video_count = len([f for f in os.listdir(videos_path) if os.path.splitext(f)[1].lower() in VALID_VIDEO_EXTENSIONS])
 
         # Process files
-        image_paths = _process_temp_upload_dir(images_path, temp_upload_dir, videos_path=videos_path, setup_type=setup_type)
+        existing_image_names = {os.path.basename(image[1]).casefold() for image in project.get_images()}
+        image_paths = _process_temp_upload_dir(images_path, temp_upload_dir, videos_path=videos_path,
+                                               setup_type=setup_type, existing_image_names=existing_image_names)
 
         annotation_files = [f for f in os.listdir(temp_upload_dir) if f.lower().endswith(('.json', '.yaml', '.txt'))]
 
@@ -332,7 +342,9 @@ async def import_images(
         new_content = len(image_paths) + len(annotation_files) + new_videos
         if new_content == 0:
             if initial_files:
-                raise ValueError('All uploaded files already exist in the project')
+                shutil.rmtree(temp_upload_dir, ignore_errors=True)
+                tracker.log_step('Import completed', details={'project_name': project_name, 'new_images': 0, 'skipped_existing': True})
+                return {"success": True, "new_images": 0, "annotations_processed": 0, "new_videos": 0}
             else:
                 raise ValueError('No files uploaded')
 

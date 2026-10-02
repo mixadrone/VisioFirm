@@ -52,7 +52,7 @@ test('bulk selection includes conflicts, synchronizes checkboxes and preserves k
     assert.equal(all.checked,false);
     assert.equal(all.indeterminate,true);
     const inputs=f.elements['duplicates-groups'].querySelectorAll();
-    const includes=inputs.filter(i=>i.type==='checkbox');
+    const includes=inputs.filter(i=>i.dataset.groupToggle==='true');
     const radios=inputs.filter(i=>i.type==='radio');
     radios[1].checked=true;radios[1].listeners.change();
     const toggleAll=checked=>{all.checked=checked;all.listeners.change();};
@@ -125,4 +125,13 @@ test('manual keeper selection changes removal IDs without merging annotations',a
     await f.elements['duplicates-clean'].listeners.click();
     assert.equal(f.requests[1].body.groups[0].keep_id,2);
     assert.deepEqual(f.requests[1].body.groups[0].remove_ids,[1]);
+});
+
+test('unreviewed copy is preselected while reviewed copies are kept',async()=>{
+    const f=fixture({groups:[{members:[member(1,{reviewed:true}),member(2,{reviewed:true}),member(3)],keep_id:1,conflict:true,token:'signed'}],skipped:[],scanned:3});
+    await f.open();
+    assert.match(f.elements['duplicates-summary'].textContent,/To remove: 1 files/);
+    assert.equal(f.elements['duplicates-loss-label'].hidden,true);
+    await f.elements['duplicates-clean'].listeners.click();
+    assert.deepEqual(f.requests[1].body.groups[0].remove_ids,[3]);
 });
