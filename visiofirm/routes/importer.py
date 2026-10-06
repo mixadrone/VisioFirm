@@ -186,6 +186,8 @@ async def create_project(
     request: Request,
     current_user: User = Depends(get_current_user_from_cookie)
 ):
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail='Only superadmin can create projects')
     tracker = request.app.tracker  # Use request.app
     form = await request.form()
     tracker.log_step('Creating project', details={'upload_id': form.get('upload_id')}) 

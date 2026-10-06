@@ -49,6 +49,14 @@
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
+                    {% if user and user.is_superadmin %}
+                    <li class="nav-item">
+                        <a href="/admin/users" class="nav-link {% if '/admin/users' in request.url.path %}active{% endif %}" title="User Management">
+                            <span class="nav-icon"><i class="fa-solid fa-users-gear"></i></span>
+                            <span class="nav-label">Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a href="https://github.com/OschAI/VisioFirm" target="_blank" rel="noreferrer" class="nav-link" title="GitHub Repository">
                             <span class="nav-icon"><i class="fa-brands fa-github"></i></span>

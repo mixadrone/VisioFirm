@@ -301,6 +301,9 @@ async def annotation(
     request: Request,
     current_user: User = Depends(get_current_user_from_cookie)
 ):
+    from visiofirm.models.user import user_has_project_access
+    if not user_has_project_access(current_user, project_name):
+        raise HTTPException(status_code=403, detail='Access denied to this project')
     print(f"Starting annotation for project: {project_name}") 
     tracker = request.app.tracker  # Use request.app
     tracker.log_step('Loading annotation interface', details={'project_name': project_name})

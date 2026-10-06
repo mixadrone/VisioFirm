@@ -61,7 +61,7 @@ async def get_current_user(token: str = Depends(security)) -> User:
     user_data = get_user_by_id(int(user_id))
     if user_data is None:
         raise credentials_exception
-    return User(user_data[0], user_data[1], user_data[3], user_data[4], user_data[5], user_data[6], user_data[7]) 
+    return User(user_data[0], user_data[1], user_data[3], user_data[4], user_data[5], user_data[6], user_data[7], user_data[8] if len(user_data) > 8 else 'user') 
 
 # Cookie-based for web forms (alternative to header for browser sessions)
 async def get_current_user_from_cookie(request: Request) -> User:
@@ -78,4 +78,9 @@ async def get_current_user_from_cookie(request: Request) -> User:
     user_data = get_user_by_id(int(user_id))
     if user_data is None:
         raise HTTPException(status_code=401, detail="User not found")
-    return User(user_data[0], user_data[1], user_data[3], user_data[4], user_data[5], user_data[6], user_data[7]) 
+    return User(user_data[0], user_data[1], user_data[3], user_data[4], user_data[5], user_data[6], user_data[7], user_data[8] if len(user_data) > 8 else 'user')
+
+async def require_superadmin(current_user: User = Depends(get_current_user_from_cookie)) -> User:
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin privileges required")
+    return current_user 

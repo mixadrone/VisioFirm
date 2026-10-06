@@ -41,25 +41,11 @@ async def login_post(
 
 @router.get("/register", response_class=HTMLResponse, name="auth.register")
 async def register_get(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return RedirectResponse(url="/auth/login?flash=error&message=Public registration is disabled. Please contact your administrator.", status_code=303)
 
 @router.post("/register", name="auth.register_post")
-async def register_post(
-    response: Response,
-    first_name: str = Form(...),
-    last_name: str = Form(...),
-    username: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    company: str = Form("")
-):
-    if not all([first_name, last_name, username, email, password]):
-        return RedirectResponse(url="/auth/register?flash=error&message=All required fields must be filled", status_code=303)
-    
-    if create_user(first_name, last_name, username, email, password, company):
-        return RedirectResponse(url="/auth/login?flash=success&message=Registration successful. Please log in.", status_code=303)
-    else:
-        return RedirectResponse(url="/auth/register?flash=error&message=Username or email already exists", status_code=303)
+async def register_post(request: Request):
+    return RedirectResponse(url="/auth/login?flash=error&message=Public registration is disabled. Please contact your administrator.", status_code=303)
 
 @router.get("/profile", response_class=HTMLResponse, name="auth.profile")
 async def profile_get(request: Request, current_user: User = Depends(get_current_user_from_cookie)):

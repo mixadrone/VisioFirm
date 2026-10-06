@@ -12,10 +12,12 @@
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="project-search-input" placeholder="Search projects..." class="dashboard-search-input">
             </div>
+            {% if user and user.is_superadmin %}
             <button class="create-btn">
                 <i class="fa-solid fa-plus"></i>
                 <span>Create New Project</span>
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -24,10 +26,12 @@
         <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
         <h3>No projects yet</h3>
         <p>Create your first computer vision project to start annotating images and videos.</p>
+        {% if user and user.is_superadmin %}
         <button class="create-btn empty-create-btn">
             <i class="fa-solid fa-plus"></i>
             <span>Create First Project</span>
         </button>
+        {% endif %}
     </div>
     {% endif %}
 

@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% block title %}User Management — Admin{% endblock %}
+{% block breadcrumb %}
+<a href="/" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Home</a>
+<span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+<span class="breadcrumb-current">User Management</span>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div class="header-titles">
+            <h2>User Management</h2>
+            <p class="subtitle">Create users, manage roles, and control project access</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateUserModal()">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Add New User</span>
+        </button>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card table-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Assigned Projects</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <span class="avatar-badge">{{ u.first_name[0] }}{{ u.last_name[0] }}</span>
+                            <div>
+                                <strong class="username-text">{{ u.username }}</strong>
+                                <span class="full-name">{{ u.first_name }} {{ u.last_name }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        {% if u.role == 'superadmin' %}
+                        <span class="role-badge role-superadmin"><i class="fa-solid fa-shield-halved"></i> Superadmin</span>
+                        {% else %}
+                        <span class="role-badge role-user"><i class="fa-solid fa-user"></i> User</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.role == 'superadmin' %}
+                        <span class="all-access-tag"><i class="fa-solid fa-unlock"></i> All Projects (Superadmin)</span>
+                        {% else %}
+                            {% if u.assigned_projects|length > 0 %}
+                            <div class="project-tags-list">
+                                {% for p in u.assigned_projects %}
+                                <span class="project-tag">{{ p }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">No projects assigned</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="text-right actions-cell">
+                        {% if u.role != 'superadmin' %}
+                        <button class="btn btn-sm btn-secondary" onclick="openProjectsModal({{ u.id }}, '{{ u.username }}', {{ u.assigned_projects|tojson }})">
+                            <i class="fa-solid fa-folder-tree"></i> Projects
+                        </button>
+                        {% endif %}
+
+                        {% if u.id != user.id %}
+                        <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete user {{ u.username }}?');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete user">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Create New User -->
+<div class="modal-overlay" id="createUserModal" style="display: none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Add New User</h3>
+            <button class="modal-close" onclick="closeCreateUserModal()">&times;</button>
+        </div>
+        <form method="post" action="/admin/users/create">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>First Name *</label>
+                        <input type="text" name="first_name" required placeholder="John">
+                    </div>
+                    <div class="form-group half">
+                        <label>Last Name *</label>
+                        <input type="text" name="last_name" required placeholder="Doe">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Username *</label>
+                    <input type="text" name="username" required placeholder="johndoe">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required placeholder="john@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" name="password" required placeholder="Enter strong password">
+                </div>
+                <div class="form-group">
+                    <label>Company / Organization</label>
+                    <input type="text" name="company" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select name="role">
+                        <option value="user" selected>Standard User (Assigned projects only)</option>
+                        <option value="superadmin">Superadmin (Full access to all projects & users)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Assign Projects -->
+<div class="modal-overlay" id="projectsModal" style="display: none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Assign Projects: <span id="modalUsername"></span></h3>
+            <button class="modal-close" onclick="closeProjectsModal()">&times;</button>
+        </div>
+        <form id="projectsForm" method="post" action="">
+            <div class="modal-body">
+                <p class="form-hint">Select the projects that this user is permitted to view and annotate:</p>
+                <div class="projects-checkbox-grid">
+                    {% for proj in all_projects %}
+                    <label class="project-checkbox-item">
+                        <input type="checkbox" name="projects" value="{{ proj }}" id="proj-cb-{{ loop.index }}">
+                        <span class="cb-label"><i class="fa-solid fa-folder"></i> {{ proj }}</span>
+                    </label>
+                    {% else %}
+                    <p class="text-muted">No projects found. Create projects first.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeProjectsModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Permissions</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+}
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.admin-header h2 {
+    margin: 0 0 6px 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+.subtitle {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 14px;
+}
+.table-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.admin-table th {
+    background: var(--bg-muted, #f9fafb);
+    padding: 12px 16px;
+    font-weight: 600;
+    text-align: left;
+    color: var(--text-muted, #4b5563);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.admin-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    vertical-align: middle;
+}
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.avatar-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+.username-text {
+    display: block;
+    color: var(--text-primary, #111827);
+}
+.full-name {
+    font-size: 12px;
+    color: var(--text-secondary, #6b7280);
+}
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.role-superadmin {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+.role-user {
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+}
+.all-access-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #16a34a;
+    font-weight: 500;
+    font-size: 13px;
+}
+.project-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.project-tag {
+    background: var(--bg-muted, #f3f4f6);
+    border: 1px solid var(--border-color, #d1d5db);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+.actions-cell {
+    white-space: nowrap;
+}
+.text-right {
+    text-align: right;
+}
+.text-muted {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 13px;
+}
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+}
+.btn-primary {
+    background: #4f46e5;
+    color: #ffffff;
+}
+.btn-primary:hover {
+    background: #4338ca;
+}
+.btn-secondary {
+    background: var(--bg-muted, #f3f4f6);
+    color: var(--text-primary, #111827);
+    border: 1px solid var(--border-color, #d1d5db);
+}
+.btn-secondary:hover {
+    background: var(--border-color, #e5e7eb);
+}
+.btn-danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+.modal-box {
+    background: var(--bg-surface, #ffffff);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+}
+.modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.form-group {
+    margin-bottom: 16px;
+}
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+.form-group.half {
+    flex: 1;
+}
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 8px;
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #111827);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.form-hint {
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    margin: 0 0 14px 0;
+}
+.projects-checkbox-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.project-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    cursor: pointer;
+    background: var(--bg-muted, #f9fafb);
+}
+.project-checkbox-item:hover {
+    background: var(--border-color, #f3f4f6);
+}
+.cb-label {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-muted, #f9fafb);
+}
+</style>
+
+<script>
+function openCreateUserModal() {
+    document.getElementById('createUserModal').style.display = 'flex';
+}
+function closeCreateUserModal() {
+    document.getElementById('createUserModal').style.display = 'none';
+}
+function openProjectsModal(userId, username, assignedList) {
+    document.getElementById('modalUsername').textContent = username;
+    document.getElementById('projectsForm').action = '/admin/users/' + userId + '/projects';
+    
+    // Check checkboxes that belong to assignedList
+    const cbs = document.querySelectorAll('#projectsModal input[type="checkbox"]');
+    cbs.forEach(cb => {
+        cb.checked = assignedList.includes(cb.value);
+    });
+    
+    document.getElementById('projectsModal').style.display = 'flex';
+}
+function closeProjectsModal() {
+    document.getElementById('projectsModal').style.display = 'none';
+}
+window.onclick = function(event) {
+    const m1 = document.getElementById('createUserModal');
+    const m2 = document.getElementById('projectsModal');
+    if (event.target === m1) closeCreateUserModal();
+    if (event.target === m2) closeProjectsModal();
+}
+</script>
+{% endblock %}

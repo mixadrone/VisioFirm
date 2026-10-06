@@ -36,8 +36,13 @@ async def index(request: Request, current_user: Optional[User] = Depends(get_cur
 
     # Import here to avoid circular import
     from visiofirm.projects import VFProjects
+    from visiofirm.models.user import get_user_projects
 
     projects_list = VFProjects.list(PROJECTS_FOLDER) or []
+    if not current_user.is_superadmin:
+        allowed_projects = set(get_user_projects(current_user.id))
+        projects_list = [p for p in projects_list if p.get('name') in allowed_projects]
+
     projects = []
 
     for p in projects_list:
@@ -131,6 +136,8 @@ async def log_error(
 
 @router.post("/delete_project/{project_name}")
 async def delete_project(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmin can delete projects")
     # Import here to avoid circular import
     from visiofirm.projects import VFProjects
     logger.info("Deleting project: %s", project_name)
@@ -151,6 +158,8 @@ async def duplicate_project(
     project_name: str,
     current_user: User = Depends(get_current_user_from_cookie)
 ):
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmin can duplicate projects")
     from visiofirm.projects import VFProjects
     try:
         body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
@@ -177,6 +186,9 @@ async def duplicate_project(
 
 @router.get("/get_project_overview/{project_name}")
 async def get_project_overview(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    from visiofirm.models.user import user_has_project_access
+    if not user_has_project_access(current_user, project_name):
+        raise HTTPException(status_code=403, detail="Access denied")
     safe_name = secure_filename(project_name)
     project_path = os.path.join(PROJECTS_FOLDER, safe_name)
     if not os.path.exists(project_path):
@@ -239,6 +251,9 @@ async def add_classes(
 # Add this endpoint to dashboard.py, after get_project_overview
 @router.get("/get_project_classes/{project_name}")
 async def get_project_classes(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    from visiofirm.models.user import user_has_project_access
+    if not user_has_project_access(current_user, project_name):
+        raise HTTPException(status_code=403, detail="Access denied")
     safe_name = secure_filename(project_name)
     project_path = os.path.join(PROJECTS_FOLDER, safe_name)
     if not os.path.exists(project_path):
@@ -256,6 +271,9 @@ async def get_project_classes(request: Request, project_name: str, current_user:
 
 @router.get("/get_project_class_stats/{project_name}")
 async def get_project_class_stats(request: Request, project_name: str, current_user: User = Depends(get_current_user_from_cookie)):
+    from visiofirm.models.user import user_has_project_access
+    if not user_has_project_access(current_user, project_name):
+        raise HTTPException(status_code=403, detail="Access denied")
     safe_name = secure_filename(project_name)
     project_path = os.path.join(PROJECTS_FOLDER, safe_name)
     db_path = os.path.join(project_path, "config.db")
