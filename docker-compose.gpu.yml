@@ -1,0 +1,27 @@
+# VisioFirm — Production Docker Compose (Contabo with NVIDIA GPU)
+# ──────────────────────────────────────────────────────
+# Usage:
+#   docker compose -f docker-compose.gpu.yml up --build -d
+# ──────────────────────────────────────────────────────
+
+services:
+  visiofirm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visiofirm
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./visiofirm_data:/root/.cache/visiofirm_cache
+    environment:
+      - HOME=/root
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

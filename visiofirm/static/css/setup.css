@@ -544,6 +544,123 @@
     background: #c82333;
 }
 
+/* Image deletion confirmations */
+#delete-images-confirm-modal .danger-modal,
+#delete-single-confirm-modal .danger-modal {
+    box-sizing: border-box;
+    width: min(440px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    overflow-y: auto;
+    background: var(--surface-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
+}
+
+#delete-images-confirm-modal .danger-header,
+#delete-single-confirm-modal .danger-header {
+    padding: 24px 24px 0;
+    background: transparent;
+    border: 0;
+    align-items: flex-start;
+}
+
+#delete-images-confirm-modal .header-content,
+#delete-single-confirm-modal .header-content {
+    gap: 12px;
+    align-items: center;
+}
+
+#delete-images-confirm-modal .danger-icon,
+#delete-single-confirm-modal .danger-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(220, 53, 69, 0.12);
+    color: #ef4657;
+    font-size: 1rem;
+}
+
+#delete-images-confirm-modal .danger-header h2,
+#delete-single-confirm-modal .danger-header h2 {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+#delete-images-confirm-modal .danger-header .close-btn,
+#delete-single-confirm-modal .danger-header .close-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    margin: -4px -4px 0 8px;
+    padding: 0;
+    border-radius: 8px;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+#delete-images-confirm-modal .danger-header .close-btn:hover,
+#delete-single-confirm-modal .danger-header .close-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-color);
+}
+
+#delete-images-confirm-modal .danger-modal .modal-body,
+#delete-single-confirm-modal .danger-modal .modal-body {
+    padding: 16px 24px 24px 76px;
+    color: var(--text-muted);
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+#delete-images-confirm-modal .danger-modal .modal-footer,
+#delete-single-confirm-modal .danger-modal .modal-footer {
+    padding: 16px 24px;
+    background: transparent;
+    border-top: 1px solid var(--border-color);
+    gap: 10px;
+}
+
+#delete-images-confirm-modal .modal-footer button,
+#delete-single-confirm-modal .modal-footer button {
+    min-height: 38px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+#delete-images-confirm-modal .modal-footer .cancel-btn,
+#delete-single-confirm-modal .modal-footer .cancel-btn {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+#delete-images-confirm-modal .modal-footer .delete-btn,
+#delete-single-confirm-modal .modal-footer .delete-btn {
+    background: #dc3545;
+    color: #fff;
+}
+
+#delete-images-confirm-modal .modal-footer .delete-btn:hover,
+#delete-single-confirm-modal .modal-footer .delete-btn:hover {
+    background: #bd2737;
+}
+
+@media (max-width: 480px) {
+    #delete-images-confirm-modal .danger-modal .modal-body,
+    #delete-single-confirm-modal .danger-modal .modal-body {
+        padding-left: 24px;
+    }
+}
+
 .modal-header {
     padding: 16px 24px;
     border-bottom: 1px solid var(--border-color);

@@ -1,0 +1,38 @@
+# VisioFirm — Production Docker Compose (Contabo / Linux VPS)
+# ──────────────────────────────────────────────────────
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Check logs:
+#   docker compose -f docker-compose.prod.yml logs -f
+#
+# Stop:
+#   docker compose -f docker-compose.prod.yml down
+# ──────────────────────────────────────────────────────
+
+services:
+  visiofirm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visiofirm
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      # Persistent storage on host Linux machine
+      # Contains projects, SQLite databases, downloaded model weights
+      - ./visiofirm_data:/root/.cache/visiofirm_cache
+    environment:
+      - HOME=/root
+      - PYTHONUNBUFFERED=1
+    # ── NVIDIA GPU support ──────────────────────────────────────────────
+    # If your Contabo server has an NVIDIA GPU and nvidia-container-toolkit installed,
+    # uncomment the block below. Keep commented for standard CPU VPS.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]

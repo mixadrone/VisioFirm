@@ -538,7 +538,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 const result = await response.json();
                 if (result.success) {
                     deleteModal.style.display = 'none';
-                    window.location.reload();
+                    const galleryUrl = new URL(window.location.href);
+                    galleryUrl.searchParams.delete('focus');
+                    window.location.replace(galleryUrl.toString());
                 } else {
                     alert(result.error || 'Failed to delete images');
                 }

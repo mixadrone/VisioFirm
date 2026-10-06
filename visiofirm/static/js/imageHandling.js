@@ -343,23 +343,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const conf = JSON.parse(document.getElementById('app-config').textContent);
         const projectName = conf.projectName;
 
-        // Determine target filename (next or previous) BEFORE removing DOM nodes
-        const thumbRows = Array.from(document.querySelectorAll('.thumbnail-row'));
-        let currentIndex = -1;
-        for (let i = 0; i < thumbRows.length; i++) {
-            if (thumbRows[i].dataset.id === filename) {
-                currentIndex = i;
-                break;
-            }
-        }
-        let targetFilename = null;
-        if (currentIndex >= 0) {
-            if (currentIndex < thumbRows.length - 1) {
-                targetFilename = thumbRows[currentIndex + 1].dataset.id;
-            } else if (currentIndex > 0) {
-                targetFilename = thumbRows[currentIndex - 1].dataset.id;
-            }
-        }
+        const visibleRows = Array.from(document.querySelectorAll('#annotation-view .thumbnail-row'))
+            .filter(row => !row.hidden);
+        const currentRowIndex = visibleRows.findIndex(row => row.dataset.id === filename);
+        const targetRow = currentRowIndex < 0 ? null
+            : visibleRows[currentRowIndex + 1] || visibleRows[currentRowIndex - 1] || null;
 
         try {
             const resp = await fetch('/annotation/delete_images', {
@@ -369,21 +357,33 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const result = await resp.json();
             if (result.success) {
-                // Remove DOM nodes for this image
-                document.querySelectorAll(`.grid-card[data-id="${filename}"]`).forEach(n => n.remove());
-                document.querySelectorAll(`.thumbnail-row[data-id="${filename}"]`).forEach(n => n.remove());
-                document.querySelectorAll(`#list-table tr[data-id="${filename}"]`).forEach(n => n.remove());
+                document.querySelectorAll('.grid-card, .thumbnail-row, #list-table tr').forEach(node => {
+                    if (node.dataset.id === filename) node.remove();
+                });
+                const nextCache = { ...annotationCache };
+                delete nextCache[pendingImageKey];
+                setAnnotationCache(nextCache);
+                setCurrentImageKey(null);
+                setCurrentImage(null);
+                setCurrentImageIndex(-1);
+                setAnnotations([]);
+                setSelectedAnnotation(null);
+                setIsModified(false);
+                closeModal();
 
-                // If we found a target filename, navigate to same page with focus param to load that image
-                if (targetFilename) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('focus', targetFilename);
-                    window.location.href = url.toString();
-                    return; // page will reload
+                const { refreshImageList } = await import('./viewManagement.js');
+                refreshImageList();
+                const nextImage = targetRow?.querySelector('img') || thumbnailImages[0];
+                if (nextImage) {
+                    await selectImage(nextImage);
+                } else {
+                    const context = canvas.getContext('2d');
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    const imageInfo = document.querySelector('.image-info-text');
+                    if (imageInfo) imageInfo.textContent = '';
+                    updateAnnotationSummary();
+                    syncApprovalButtons();
                 }
-
-                // no target — reload current page (will show empty state)
-                window.location.reload();
             } else {
                 alert(result.error || 'Failed to delete image');
             }
